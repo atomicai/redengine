@@ -15,3 +15,7 @@ class User:
 class RegisterForm:
     email: str
     password: str
+
+@dataclass
+class Token:
+    refresh_token: str

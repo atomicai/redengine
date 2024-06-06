@@ -1,18 +1,30 @@
-
+import asyncio
 import random
 import aioredis
 from queues.redis.redisQueue import (RedisQueue)
 from werkzeug.exceptions import HTTPException
 import os
+
 import jwt
 from datetime import datetime, timedelta
 from quart import Quart, redirect, url_for, session, request, jsonify, g
 from authlib.integrations.starlette_client import OAuth
 import rethinkdb as r
-
+import os
+import pathlib
+from pathlib import Path
+import yaml
+import requests
+from flask import Flask, session, abort, redirect, request
+from google.oauth2 import id_token
+from google_auth_oauthlib.flow import Flow
+from pip._vendor import cachecontrol
+import google.auth.transport.requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from typing import Dict, Any, Optional, Tuple, List
 
+with open(str(Path(os.getcwd()).parent / "config.yaml"), 'r') as file:
+    config = yaml.safe_load(file)
 
 rdb = r.RethinkDB()
 rdb.set_loop_type('asyncio')
@@ -22,6 +34,14 @@ JWT_SECRET_KEY = os.environ.get("SECRET_KEY")
 class CustomException(HTTPException):
     code = 500
     description = 'Почта уже занята'
+
+
+flow = Flow.from_client_config(
+    client_config=config,
+    scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email",
+            "openid"],
+    redirect_uri="http://127.0.0.1:5000/callback"
+)
 
 
 async def predict(id):
@@ -53,7 +73,7 @@ async def verify_token(token: str) -> Optional[str]:
 
 
 async def addUser(user):
-    async with await rdb.connect(host='localhost', port=28015) as connection:
+    async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
         hashed_password = generate_password_hash(user.password)
         existing = await rdb.db('meetingsBook').table('users').filter({'email': user.email}).nth(0).default(None).run(
             connection)
@@ -63,16 +83,16 @@ async def addUser(user):
         access_token, refresh_token = await generate_tokens(user.email)
 
         await rdb.db('meetingsBook').table('users').insert(
-            {'email': user.email, 'password': hashed_password, 'refresh_token': refresh_token}).run(connection)
+            {'email': user.email, 'password': hashed_password, 'refresh_token': refresh_token,'active': True}).run(connection)
 
         return {'access_token': access_token, 'refresh_token': refresh_token}
 
 
 async def loginUser(user):
-    async with await rdb.connect(host='localhost', port=28015) as connection:
+    async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
         person = await rdb.db('meetingsBook').table('users').filter({'email': user.email}).nth(0).default(None).run(
             connection)
-    if user and check_password_hash(person['password'], user.password):
+    if person['password'] and user and check_password_hash(person['password'], user.password):
         access_token, refresh_token = generate_tokens(user.email)
         await rdb.db('meetingsBook').table('users').update({'refresh_token': refresh_token}).run(
             connection)
@@ -82,7 +102,7 @@ async def loginUser(user):
 
 
 async def predict_post():
-    async with await rdb.connect(host='localhost', port=28015) as connection:
+    async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
         book_ids = []
         posts = []
         books_info = rdb.db('meetingsBook').table('books').pluck("id").run(connection)
@@ -102,37 +122,55 @@ async def predict_post():
 
 
 async def delete_account(id) -> any:
-    pass
+    async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
+        await rdb.db('meetingsBook').table('users').filter({'id': id}).update(
+            {'active': False }).run(connection)
+
 
 async def get_all_users() -> List[Dict[str, Any]]:
-    async with await rdb.connect(host='localhost', port=28015) as connection:
+    async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
         users_cursor = await rdb.table('users').run(connection)
         users = [user async for user in users_cursor]
         return users
 
 
-async def authorize_user() -> str:
-    async with await rdb.connect(host='localhost', port=28015) as connection:
-        token = await OAuth.google.authorize_access_token()
-        user_info = await OAuth.google.parse_id_token(token)
+async def authorize_user():
+    async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
+        flow = Flow.from_client_config(
+            client_config=config,
+            scopes=["https://www.googleapis.com/auth/userinfo.profile",
+                    "https://www.googleapis.com/auth/userinfo.email",
+                    "openid"],
+            redirect_uri="http://127.0.0.1:5000/callback"
+        )
+        flow.fetch_token(authorization_response=request.url)
 
-        user_id: str = user_info['sub']
-        email: str = user_info['email']
-        name: str = user_info.get('name')
+        credentials = flow.credentials
+        request_session = requests.session()
+        cached_session = cachecontrol.CacheControl(request_session)
+        token_request = google.auth.transport.requests.Request(session=cached_session)
 
-    existing_user = await rdb.db('meetingsBook').table('users').filter({'email': email}).nth(0).default(None).run(
-        connection)
+        user = id_token.verify_oauth2_token(
+            id_token=credentials._id_token,
+            request=token_request,
+            audience=config["web"]["client_id"]
+        )
 
-    if not existing_user:
-        await rdb.db('meetingsBook').table('users').insert({'email': email, 'name': name, 'refresh_token': ''}).run(
+        existing_user =await rdb.db('meetingsBook').table('users').filter({'email': user['email']}).nth(0).default(None).run(
             connection)
 
-    return 'Registration successful. You can now log in with your Google account.'
+        access_token, refresh_token = await generate_tokens(user['email'])
+
+        if not existing_user:
+            await rdb.db('meetingsBook').table('users').insert(
+                {'email': user['email'], 'name': user['name'], 'refresh_token': refresh_token,'active':True }).run(
+                connection)
+
+        return {'access_token': access_token, 'refresh_token': refresh_token}
 
 
-async def refresh_user_token() -> Dict[str, Any]:
-    async with await rdb.connect(host='localhost', port=28015) as connection:
-        data = await request.json
+async def refresh_user_token(data):
+    async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
         refresh_token: str = data['refresh_token']
 
         try:

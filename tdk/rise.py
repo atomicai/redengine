@@ -1,20 +1,30 @@
-
 from functools import wraps
 from pathlib import Path
 from typing import Dict, Any, List
-from tdk.user.schemas import RegisterForm
+from tdk.user.schemas import RegisterForm,Token
 from authlib.integrations.starlette_client import OAuth
+import requests
 from passlib.context import CryptContext
+from google_auth_oauthlib.flow import Flow
 from quart import Quart, redirect, url_for, request, jsonify, g
-from quart_schema import QuartSchema,validate_request,validate_response
-from tdk.prime import verify_token, addUser, loginUser, refresh_user_token, authorize_user,get_all_users, predict_post, delete_account
-
+from quart_schema import QuartSchema, validate_request, validate_response
+from tdk.prime import verify_token, addUser, loginUser, refresh_user_token, authorize_user, get_all_users, predict_post, \
+    delete_account, generate_tokens
+from requests_oauthlib import OAuth2Session
 import asyncio
 import os
 import dotenv
 import yaml
+import rethinkdb as r
+from google.oauth2 import id_token
+from google_auth_oauthlib.flow import Flow
+from pip._vendor import cachecontrol
+import google.auth.transport.requests
 
 dotenv.load_dotenv()
+
+rdb = r.RethinkDB()
+conn = rdb.connect(host='localhost', port=28015)
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 # client_secrets_file = os.path.join(pathlib.Path(__file__).parent, "client_secret.json")
@@ -27,16 +37,15 @@ app.secret_key = os.environ.get("SECRET_KEY")
 with open(str(Path(os.getcwd()).parent / "config.yaml"), 'r') as file:
     config = yaml.safe_load(file)
 
-# flow = Flow.from_client_secrets_file(
-#     client_secrets_file=client_secrets_file,
-#     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email",
-#             "openid"],
-#     redirect_uri="http://127.0.0.1:5000/callback"
-# )
+flow = Flow.from_client_config(
+    client_config=config,
+    scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email",
+            "openid"],
+    redirect_uri="http://127.0.0.1:5000/callback"
+)
 
 QuartSchema(app)
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
-
 
 
 def authorized(f):
@@ -56,29 +65,30 @@ def authorized(f):
 
 @app.route("/")
 def index():
-    return "Hello World <a href='/login'><button>Login</button></a>"
+    return 'Welcome to the Quart App! <br><a href="/register">Register</a> <br><a href="/login">Login</a> <br><a href="/register/google">Register with Google</a>'
 
 
 @app.route('/login', methods=['POST'])
 @validate_request(RegisterForm)
-async def login(data: RegisterForm) -> Dict[str, Any]:
+def login(data: RegisterForm) -> Dict[str, Any]:
     return asyncio.run(loginUser(data))
 
 
 @app.route('/register/google')
-async def register_google() -> redirect:
-    redirect_uri: str = url_for('authorize', _external=True)
-    return await OAuth.google.authorize_redirect(redirect_uri)
+def register_google() -> redirect:
+    authorization_url, state = flow.authorization_url()
+    print(authorization_url)
+    return redirect(authorization_url)
 
 
 @app.route('/callback')
-async def authorize() -> str:
+def authorize():
     return asyncio.run(authorize_user())
 
-
 @app.route('/token/refresh', methods=['POST'])
-async def refresh_token() -> Dict[str, Any]:
-    return asyncio.run(refresh_user_token())
+@validate_request(Token)
+def refresh_token(data: Token):
+    return asyncio.run(refresh_user_token(data))
 
 
 @app.route("/registration", methods=["POST"])
@@ -107,5 +117,3 @@ async def predict() -> any:
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-app.run()
