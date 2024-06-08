@@ -54,11 +54,11 @@ async def predict(id):
     return post
 
 
-async def generate_tokens(user_id: str) -> Tuple[str, str]:
-    access_token = jwt.encode({'user_id': user_id, 'exp': datetime.utcnow() + timedelta(minutes=15)},
-                              JWT_SECRET_KEY, algorithm='HS256')
-    refresh_token = jwt.encode({'user_id': user_id, 'exp': datetime.utcnow() + timedelta(days=7)},
-                               JWT_SECRET_KEY, algorithm='HS256')
+async def generate_tokens(user_id):
+    access_token = jwt.encode({'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(minutes=15)},
+                              str(JWT_SECRET_KEY), algorithm='HS256')
+    refresh_token = jwt.encode({'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(days=7)},
+                               str(JWT_SECRET_KEY), algorithm='HS256')
     return access_token, refresh_token
 
 
@@ -134,7 +134,7 @@ async def get_all_users() -> List[Dict[str, Any]]:
         return users
 
 
-async def authorize_user():
+async def authorize_user(request):
     async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
         flow = Flow.from_client_config(
             client_config=config,
@@ -153,14 +153,13 @@ async def authorize_user():
         user = id_token.verify_oauth2_token(
             id_token=credentials._id_token,
             request=token_request,
-            audience=config["web"]["client_id"]
+            audience=config["web"]["client_id"],
+            clock_skew_in_seconds=5,
         )
 
-        existing_user =await rdb.db('meetingsBook').table('users').filter({'email': user['email']}).nth(0).default(None).run(
+        existing_user =await rdb.db('meetingsBook').table('users').filter({'email': str(user['email'])}).nth(0).default(None).run(
             connection)
-
-        access_token, refresh_token = await generate_tokens(user['email'])
-
+        access_token, refresh_token = await generate_tokens(str(user['email']))
         if not existing_user:
             await rdb.db('meetingsBook').table('users').insert(
                 {'email': user['email'], 'name': user['name'], 'refresh_token': refresh_token,'active':True }).run(
@@ -171,11 +170,10 @@ async def authorize_user():
 
 async def refresh_user_token(data):
     async with await rdb.connect(host=config["db"]["host"], port=config["db"]["port"]) as connection:
-        refresh_token: str = data['refresh_token']
-
+        refresh_token = data.refresh_token
         try:
-            decoded: Dict[str, Any] = jwt.decode(refresh_token, JWT_SECRET_KEY, algorithms=['HS256'])
-            user_id: str = decoded['user_id']
+            decoded = jwt.decode(refresh_token, JWT_SECRET_KEY, algorithms=['HS256'])
+            user_id = decoded['user_id']
             user = await rdb.db('meetingsBook').table('users').filter({'email': user_id}).run(connection)
 
             if user and user['refresh_token'] == refresh_token:

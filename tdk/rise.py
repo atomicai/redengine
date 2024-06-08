@@ -1,7 +1,7 @@
 from functools import wraps
 from pathlib import Path
 from typing import Dict, Any, List
-from tdk.user.schemas import RegisterForm,Token
+from tdk.user.schemas import RegisterForm, Token
 from authlib.integrations.starlette_client import OAuth
 import requests
 from passlib.context import CryptContext
@@ -83,19 +83,18 @@ def register_google() -> redirect:
 
 @app.route('/callback')
 def authorize():
-    return asyncio.run(authorize_user())
-
-@app.route('/token/refresh', methods=['POST'])
-@validate_request(Token)
-def refresh_token(data: Token):
-    return asyncio.run(refresh_user_token(data))
-
+    print(request)
+    return asyncio.run(authorize_user(request))
 
 @app.route("/registration", methods=["POST"])
 @validate_request(RegisterForm)
 def registration(data: RegisterForm):
     return asyncio.run(addUser(data))
 
+@app.route("/refresh-token", methods=["POST"])
+@validate_request(Token)
+def refresh_token(data: Token):
+    return asyncio.run(refresh_user_token(data))
 
 @app.route('/users', methods=['GET'])
 @authorized
@@ -105,7 +104,7 @@ async def get_users() -> List[Dict[str, Any]]:
 
 @app.route('/delete', methods=['DELETE'])
 @authorized
-async def delete(id) -> any:
+def delete(id):
     return asyncio.run(delete_account(id))
 
 
