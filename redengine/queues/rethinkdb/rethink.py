@@ -2,7 +2,7 @@ import repubsub
 import asyncio
 import uuid
 
-from polaroids.polaroids.tdk.prime import UserAction, EventLike, ActionPost
+from redengine.tdk.prime import UserAction, EventLike, ActionPost
 
 
 exchange = repubsub.Exchange('pubsub_demo', db='meetingsBook', host='localhost', port=28015)

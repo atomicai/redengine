@@ -1,0 +1,62 @@
+{
+    "python.defaultInterpreterPath": "~/ISpell/envs/polaroids/bin/python",
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    "flake8.args": [
+        "--max-line-length=128"
+    ],
+    "python.formatting.provider": "black",
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
+    "editor.formatOnSave": true,
+    "debug.console.fontSize": 13,
+    "debug.console.fontFamily": "Roboto Mono for Powerline",
+    "terminal.integrated.fontFamily": "monospace",
+    "terminal.integrated.fontSize": 15,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ],
+    "python.languageServer": "Jedi",
+    "files.exclude": {
+        "**/*.pyc": {
+            "when": "$(basename).py"
+        },
+        "**/__pycache__": true,
+    },
+    "jupyter.alwaysTrustNotebooks": true,
+    "jupyter.jupyterServerType": "local",
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "workbench.settings.useSplitJSON": true,
+    "workbench.settings.openDefaultSettings": true,
+    "editor.fontSize": 14,
+    "editor.fontFamily": "Ubuntu Light",
+    "editor.tokenColorCustomizations": {
+        "[One Dark Pro]": {
+            "textMateRules": [
+                {
+                    "scope": [
+                        "source.python"
+                    ],
+                    "settings": {
+                        "fontStyle": "italic"
+                    }
+                }
+            ]
+        },
+        "[Noctis]": {
+            "textMateRules": [
+                {
+                    "scope": [
+                        "source.python"
+                    ],
+                    "settings": {
+                        "fontStyle": "italic"
+                    }
+                }
+            ]
+        }
+    },
+    "python.REPL.enableREPLSmartSend": false
+}

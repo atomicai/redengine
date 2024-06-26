@@ -1,0 +1,60 @@
+version: '3.4'
+services:
+  weaviate:
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - '2211'
+      - --scheme
+      - http
+    image: cr.weaviate.io/semitechnologies/weaviate:1.24.5
+    ports:
+      - 2211:2211
+      - 50051:50051
+    volumes:
+      - weaviatedb:/var/lib/weaviate
+    restart: on-failure:0
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'node1'
+
+  rethinkdb:
+    image: rethinkdb:2.4.3
+    container_name: redengine-rethinkdb
+    ports:
+      - "8080:8080"
+      - "28015:28015"
+    volumes:
+      - rethinkdb_data:/apps/rethinkdb/data
+    networks:
+      - rethinkdb-net
+
+  init-db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: init-db
+    depends_on:
+      - rethinkdb
+    networks:
+      - rethinkdb-net
+
+  redis:
+    image: redis:latest
+    volumes:
+      - ./redis.conf:/redis.conf
+    ports:
+      - '6379:6379'
+    command: [ "redis-server", "/redis.conf" ]
+
+networks:
+  rethinkdb-net:
+volumes:
+  weaviatedb:
+    external: false
+  rethinkdb_data: null
