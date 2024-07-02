@@ -115,8 +115,8 @@ async def get_users() -> List[Dict[str, Any]]:
 
 @app.route('/delete', methods=['DELETE'])
 @authorized
-async def delete(id):
-    return await delete_account(id)
+async def delete(user_id):
+    return await delete_account(user_id)
    
 @app.route('/start_messaging', methods=['GET', 'POST'])
 @authorized
