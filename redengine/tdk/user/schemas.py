@@ -16,6 +16,9 @@ class RegisterForm:
     email: str
     password: str
 
+@dataclass
+class userIdChat:
+    user_id: str 
 
 @dataclass
 class Token:

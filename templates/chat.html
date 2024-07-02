@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Chat with {{ chat_user.name }}</title>
+</head>
+
+<body>
+    <h1>Chat with {{ chat_user.name }}</h1>
+    <div id="chatbox"></div>
+    <input type="text" id="message" placeholder="Enter your message">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+
+        ws.onmessage = function (event) {
+            const chatbox = document.getElementById('chatbox');
+            const message = JSON.parse(event.data);
+            chatbox.innerHTML += `<p>${message.sender_id === '{{ user.id }}' ? 'You' : '{{ chat_user.name }}'}: ${message.message}</p>`;
+        };
+
+        function sendMessage() {
+            const message = document.getElementById('message').value;
+            ws.send(JSON.stringify({ message: message }));
+            document.getElementById('message').value = '';
+        }
+    </script>
+</body>
+
+</html>

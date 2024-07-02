@@ -7,7 +7,7 @@ from werkzeug.exceptions import HTTPException
 
 import jwt
 from datetime import datetime, timedelta
-from quart import Quart, redirect, url_for, session, request, jsonify, g
+from quart import Quart, redirect, url_for, session, request, jsonify, g,render_template,websocket as wsd
 from authlib.integrations.starlette_client import OAuth
 import rethinkdb as r
 import os
@@ -59,46 +59,95 @@ async def predict(id):
     # return post
     return 'ok'
 
+async def websocket(user_id):
+    user_id = user_id
+    chat_user_id = session.get('chat_user_id')
+    if not user_id or not chat_user_id:
+        return
+
+    async def send_messages():
+        while True:
+            cursor =await RethinkDb.cursorChat(user_id,chat_user_id)
+        
+        async for change in cursor:
+            message = change['new_val']
+            await wsd.send_json(message)
+    
+    async def receive_messages():
+        while True:
+            data = await wsd.receive_json()
+            await RethinkDb.addMessage(user_id,chat_user_id,data["message"])
+    
+    await asyncio.gather(send_messages(), receive_messages())
 
 async def generate_tokens(user_id):
     access_token = jwt.encode({'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(minutes=15)},
-                              str(JWT_SECRET_KEY), algorithm='HS256')
+                              str(Config.jwt_secret_key), algorithm='HS256')
     refresh_token = jwt.encode({'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(days=7)},
-                               str(JWT_SECRET_KEY), algorithm='HS256')
+                               str(Config.jwt_secret_key), algorithm='HS256')
     return access_token, refresh_token
 
 
 async def verify_token(token: str) -> Optional[str]:
     try:
-        decoded = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        decoded = jwt.decode(token, Config.jwt_secret_key, algorithms=['HS256'])
         return decoded['user_id']
     except jwt.ExpiredSignatureError:
         return None
     except jwt.InvalidTokenError:
         return None
 
+async def chat(user_id):
+    chat_user_id = session.get('chat_user_id')
+    if user_id and chat_user_id:
+        user = await RethinkDb.personById(user_id)
+        chat_user = await RethinkDb.personById(chat_user_id)
+        return await render_template('chat.html', user=user, chat_user=chat_user)
+    return redirect(url_for('start_messaging'))
+
+async def messages(request,user_id):
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 50))
+    chat_user_id = session.get('chat_user_id')
+    
+    if not user_id or not chat_user_id:
+        return jsonify([])
+
+    messages = await RethinkDb.messages(user_id, chat_user_id, page, limit)
+
+    return jsonify(messages)
+
+async def start_messaging(request,user_id):
+        if request.method == 'POST':
+            return await render_template('index.html')
+
+async def select_user(request):
+        users = await RethinkDb.usersList()
+        if request.method == 'POST':
+            data = await request.form
+            session['chat_user_id'] = data['user_id']
+            return redirect(url_for('chat'))
+        return await render_template('select_user.html', users=users)
+
 
 async def addUser(user):
         
         hashed_password = generate_password_hash(user.password)
-        
         existing = await RethinkDb.personByEmail(user.email)
-        
+
         if existing:
             raise CustomException()
 
         access_token, refresh_token = await generate_tokens(user.email)
-
         await RethinkDb.addUser(user.email,hashed_password,refresh_token)
 
         return {'access_token': access_token, 'refresh_token': refresh_token}
-
 
 async def loginUser(user):
         person = await RethinkDb.personByEmail(user.email)
 
         if person['password'] and user and check_password_hash(person['password'], user.password):
-            access_token, refresh_token = generate_tokens(user.email)
+            access_token, refresh_token = await generate_tokens(user.email)
             
             await RethinkDb.updateRefreshToken(refresh_token)
             
@@ -109,7 +158,6 @@ async def loginUser(user):
 
 async def delete_account(id) -> any:
         await RethinkDb.deleteAccount(id)
-
 
 async def get_all_users() -> List[Dict[str, Any]]:
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
@@ -134,9 +182,9 @@ async def authorize_user(request):
         token_request = google.auth.transport.requests.Request(session=cached_session)
 
         user = id_token.verify_oauth2_token(
-            id_token=credentials._id_token,
-            request=token_request,
-            audience=Config.web.client_id,
+            id_token = credentials._id_token,
+            request = token_request,
+            audience = Config.web.client_id,
             clock_skew_in_seconds=5,
         )
 
@@ -147,7 +195,6 @@ async def authorize_user(request):
 
         return {'access_token': access_token, 'refresh_token': refresh_token}
 
-
 async def refresh_user_token(data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
         refresh_token = data.refresh_token
@@ -157,7 +204,7 @@ async def refresh_user_token(data):
             user = await RethinkDb.personByEmail(user_id)
 
             if user and user['refresh_token'] == refresh_token:
-                access_token, new_refresh_token = generate_tokens(user_id)
+                access_token, new_refresh_token = await generate_tokens(user_id)
                 await rdb.db('meetingsBook').table('users').filter({'email': user_id}).update(
                     {'refresh_token': new_refresh_token}).run(connection)
             return {'access_token': access_token, 'refresh_token': new_refresh_token}
@@ -165,7 +212,6 @@ async def refresh_user_token(data):
             return {'message': 'Refresh token expired'}, 401
         except jwt.InvalidTokenError:
             return {'message': 'Invalid token'}, 401
-
 
 async def predict_post():
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
@@ -175,7 +221,6 @@ async def predict_post():
         for book_id in books_info:
             book_ids.append(book_id["id"])
         random_book_id = random.choice(book_ids)
-
         posts_info = list(rdb.db('meetingsBook').table('posts').filter({'book_id': random_book_id}).run(connection))
         for post in posts_info:
             posts.append(post)
