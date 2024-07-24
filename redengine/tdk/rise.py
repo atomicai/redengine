@@ -1,18 +1,18 @@
 from functools import wraps
 from pathlib import Path
 from typing import Dict, Any, List
-from redengine.tdk.user.schemas import RegisterForm, Token, userIdChat
+from redengine.tdk.user.schemas import RegisterForm, Token, userIdChat, RegisterFormTelegram, TgUserPhoto, TgUserInfo, TgUserReaction
 from authlib.integrations.starlette_client import OAuth
-from dataclasses import dataclass
+from dataclasses import dataclass,asdict
+from redengine.tdk.lib.asdict_without_none import asdict_without_none
 import requests
 
 import jwt
 from passlib.context import CryptContext
-from google_auth_oauthlib.flow import Flow
-from quart import Quart, redirect, url_for, request, jsonify, g
+from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
 from redengine.tdk.prime import verify_token, addUser, loginUser, refresh_user_token, get_all_users, predict_post, \
-    delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages
+    delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -102,6 +102,29 @@ async def authorize():
 async def registration(data: RegisterForm):
     return await addUser(data)
 
+@app.route("/registration-tg", methods=["POST"])
+@validate_request(RegisterFormTelegram)
+async def registration_tg(data: RegisterFormTelegram):
+    data=asdict(data)
+    return await addTgUser(data)
+
+@app.route("/add-tg-photo", methods=["POST"])
+@validate_request(TgUserPhoto)
+async def addTgUserPhoto(data: TgUserPhoto):
+    data = asdict_without_none(data)
+    return await addTelegramUserPhoto(data)
+
+@app.route("/add-tg-userinfo", methods=["POST"])
+@validate_request(TgUserInfo)
+async def addTgUserInformation(data: TgUserInfo):
+    data = asdict_without_none(data)
+    return await addTgUserInfo(data)
+
+@app.route("/add-tg-reaction", methods=["POST"])
+@validate_request(TgUserReaction)
+async def addTelegramUserReaction(data: TgUserReaction):
+    return await addTgUsйerReaction(data)
+
 @app.route("/refresh-token", methods=["POST"])
 @validate_request(Token)
 async def refresh_token(data: Token):
@@ -144,11 +167,21 @@ async def get_messages(user_id):
 async def ws(user_id):
     return await websocket(user_id)
 
-@app.route('/predict', methods=['GET'])
-@authorized
-async def predict() -> any:
-    return asyncio.run(predict_post())
+# @app.route('/predict/<int:tg_user_id>', methods=['GET'])
+# @authorized
+# async def predict() -> any:
+#     return asyncio.run(predict_post())
 
+@app.route('/predict/<int:tg_user_id>', methods=['GET'])
+async def predict(tg_user_id) -> any:
+    return await predict_post(tg_user_id)
+
+@app.route('/media/<path:filename>', methods=['GET'])
+async def get_media(filename):
+    try:
+        return await send_file(f'{filename}')
+    except FileNotFoundError:
+        return jsonify({"message": "File not found"}), 404
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

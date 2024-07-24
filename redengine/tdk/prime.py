@@ -3,8 +3,6 @@ import random
 #import aioredis
 # from queues.redis.redisQueue import (RedisQueue)
 from werkzeug.exceptions import HTTPException
-
-
 import jwt
 from datetime import datetime, timedelta
 from quart import Quart, redirect, url_for, session, request, jsonify, g,render_template,websocket as wsd
@@ -129,7 +127,6 @@ async def select_user(request):
             return redirect(url_for('chat'))
         return await render_template('select_user.html', users=users)
 
-
 async def addUser(user):
         
         hashed_password = generate_password_hash(user.password)
@@ -142,6 +139,26 @@ async def addUser(user):
         await RethinkDb.addUser(user.email,hashed_password,refresh_token)
 
         return {'access_token': access_token, 'refresh_token': refresh_token}
+
+async def addTgUser(data):
+        existing = await RethinkDb.personByTgUserId(data["tg_user_id"])
+        if not existing:
+             await RethinkDb.telegramRegistration(data["tg_user_id"])
+        return 'ok'
+
+        
+async def addTelegramUserPhoto(data):
+        await RethinkDb.telegramUserAddPhoto(data)  
+        return 'ok'   
+
+async def addTgUserInfo(data):
+    await RethinkDb.telegramUserAddInfo(data)  
+    return 'ok'     
+
+async def addTgUserReaction(data):
+    userReaction = data.dict(exclude_unset=True)  
+    await RethinkDb.sendReaction(userReaction)  
+# data.tg_user_id, data.username, data.age, data.describe
 
 async def loginUser(user):
         person = await RethinkDb.personByEmail(user.email)
@@ -213,20 +230,38 @@ async def refresh_user_token(data):
         except jwt.InvalidTokenError:
             return {'message': 'Invalid token'}, 401
 
-async def predict_post():
+async def predict_post(tg_user_id):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
+        print(tg_user_id)
         book_ids = []
         posts = []
-        books_info = rdb.db('meetingsBook').table('books').pluck("id").run(connection)
-        for book_id in books_info:
-            book_ids.append(book_id["id"])
-        random_book_id = random.choice(book_ids)
-        posts_info = list(rdb.db('meetingsBook').table('posts').filter({'book_id': random_book_id}).run(connection))
-        for post in posts_info:
-            posts.append(post)
-        random_post = random.choice(posts)
-        [author_name] = list(
-            rdb.db('meetingsBook').table('authors').filter({'id': random_post['author_id']}).run(connection))
-        [book_name] = list(rdb.db('meetingsBook').table('books').filter({'id': random_post['book_id']}).run(connection))
-    return {'id': random_post['id'], "author_name": author_name['name'], "book_name": book_name['label'],
-            'post': random_post['context'], "score": 20}
+        books_info = await rdb.db('meetingsDb').table('books').get('a1eec874-7d10-4e3d-bcfb-24712bfb0941').run(connection)
+        print(books_info)
+        book_id = books_info["id"]
+        posts_info = await rdb.db('meetingsDb').table('posts').filter({'book_id': book_id}).nth(0).default(None).run(connection)
+        author_name = await rdb.db('meetingsDb').table('authors').filter({'id': posts_info['author_id']}).nth(0).default(None).run(connection)
+        book_name = await rdb.db('meetingsDb').table('books').filter({'id': posts_info['book_id']}).nth(0).default(None).run(connection)
+    return {'id': posts_info['id'], "author_name": author_name['name'], "book_name": book_name['label'],
+            'post': posts_info['context'], "score": 20, "media_path": posts_info['img_path'], "media_type":"image"}
+
+
+
+
+
+
+    # async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
+    #     book_ids = []
+    #     posts = []
+    #     books_info = rdb.db('meetingsBook').table('books').pluck("id").run(connection)
+    #     for book_id in books_info:
+    #         book_ids.append(book_id["id"])
+    #     random_book_id = random.choice(book_ids)
+    #     posts_info = list(rdb.db('meetingsBook').table('posts').filter({'book_id': random_book_id}).run(connection))
+    #     for post in posts_info:
+    #         posts.append(post)
+    #     random_post = random.choice(posts)
+    #     [author_name] = list(
+    #         rdb.db('meetingsBook').table('authors').filter({'id': random_post['author_id']}).run(connection))
+    #     [book_name] = list(rdb.db('meetingsBook').table('books').filter({'id': random_post['book_id']}).run(connection))
+    # return {'id': random_post['id'], "author_name": author_name['name'], "book_name": book_name['label'],
+    #         'post': random_post['context'], "score": 20}

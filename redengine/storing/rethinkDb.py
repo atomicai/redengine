@@ -8,6 +8,7 @@ import os
 import yaml
 from dotmap import DotMap
 from redengine.configuring import Config
+from redengine.tdk.lib import transliterate
 
 rdb = r.RethinkDB()
 rdb.set_loop_type('asyncio')
@@ -37,7 +38,7 @@ class IReDocStore(IDBDocStore):
     async def addUser(self, email, hashed_password, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').insert(
-            {'email': email, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.utcnow()}).run(connection)      
+            {'email': email, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
 
     async def updateRefreshToken(self, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
@@ -52,6 +53,28 @@ class IReDocStore(IDBDocStore):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             return await rdb.db(self.db).table('users').run(connection)
   
+    async def personByTgUserId(self, tg_user_id):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            return await rdb.db(self.db).table('users').filter({'tg_user_id': tg_user_id}).nth(0).default(None).run(
+            connection)
+
+    async def telegramRegistration(self, tg_user_id):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            await rdb.db(self.db).table('users').insert(
+            {'tg_user_id': tg_user_id, 'active': True, 'created_at': datetime.utcnow().isoformat()}).run(connection)     
+
+    async def telegramUserAddPhoto(self, user_photo):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            await rdb.db(self.db).table('users').filter({'tg_user_id': user_photo["tg_user_id"]}).update(user_photo).run(connection)  
+
+    async def telegramUserAddInfo(self, user_info):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            await rdb.db(self.db).table('users').filter({'tg_user_id': user_info["tg_user_id"]}).update(user_info).run(connection)   
+
+    async def sendReaction(self, user_reaction):
+        (rdb.db('meetingsBook').table('events_' + transliterate(user_reaction.book_name.replace(" ", "_")))
+        .insert(user_reaction).run(
+            conn))
 
     async def cursorChat(self, user_id, chat_user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
