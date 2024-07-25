@@ -178,8 +178,9 @@ async def predict(tg_user_id) -> any:
 
 @app.route('/media/<path:filename>', methods=['GET'])
 async def get_media(filename):
+    print('================',filename)
     try:
-        return await send_file(f'{filename}')
+        return await send_file(f'./img/{filename}.png')
     except FileNotFoundError:
         return jsonify({"message": "File not found"}), 404
 
