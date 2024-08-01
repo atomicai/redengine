@@ -1,7 +1,7 @@
 from functools import wraps
 from pathlib import Path
 from typing import Dict, Any, List
-from redengine.tdk.user.schemas import RegisterForm, Token, userIdChat, RegisterFormTelegram, TgUserPhoto, TgUserInfo, TgUserReaction
+from redengine.tdk.user.schemas import Token, userIdChat, RegisterFormTelegram, TgUserPhoto, TgUserInfo, TgUserReaction, GenerationLogin,RegisterForm
 from authlib.integrations.starlette_client import OAuth
 from dataclasses import dataclass,asdict
 from redengine.tdk.lib.asdict_without_none import asdict_without_none
@@ -11,8 +11,8 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, addUser, loginUser, refresh_user_token, get_all_users, predict_post, \
-    delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post, \
+    delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -46,7 +46,7 @@ flow = Flow.from_client_config(
     client_config=flowConfig,
     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email",
             "openid"],
-    redirect_uri="http://127.0.0.1:5000/callback"
+    redirect_uri="https://polaroids.ngrok.app/callback"
 )
 
 
@@ -85,16 +85,15 @@ async def googleTest():
 async def login(data: RegisterForm) -> Dict[str, Any]:
     return await loginUser(data)
 
-
 @app.route('/register/google')
 async def register_google() -> redirect:
     authorization_url, state = flow.authorization_url()
-    print(authorization_url)
-    return redirect(authorization_url)
+    return jsonify({"authorization_url":authorization_url})
 
 
 @app.route('/callback')
 async def authorize():
+    print('33333333333333',request)
     return await authorize_user(request)
 
 @app.route("/registration", methods=["POST"])
@@ -107,6 +106,12 @@ async def registration(data: RegisterForm):
 async def registration_tg(data: RegisterFormTelegram):
     data=asdict(data)
     return await addTgUser(data)
+
+@app.route('/generate_names', methods=['POST'])
+@validate_request(GenerationLogin)
+async def generate_names(data: GenerationLogin):
+    data=asdict(data)
+    return await generateName(data)
 
 @app.route("/add-tg-photo", methods=["POST"])
 @validate_request(TgUserPhoto)
@@ -123,7 +128,8 @@ async def addTgUserInformation(data: TgUserInfo):
 @app.route("/add-tg-reaction", methods=["POST"])
 @validate_request(TgUserReaction)
 async def addTelegramUserReaction(data: TgUserReaction):
-    return await addTgUsйerReaction(data)
+    data = asdict(data)
+    return await addTgUserReaction(data)
 
 @app.route("/refresh-token", methods=["POST"])
 @validate_request(Token)
@@ -178,7 +184,6 @@ async def predict(tg_user_id) -> any:
 
 @app.route('/media/<path:filename>', methods=['GET'])
 async def get_media(filename):
-    print('================',filename)
     try:
         return await send_file(f'./img/{filename}.png')
     except FileNotFoundError:

@@ -12,8 +12,10 @@ class User:
 
 @dataclass
 class RegisterForm:
-    email: str
     password: str
+    email: Optional[str] = None
+    login: Optional[str] = None
+
 
 @dataclass
 class userIdChat:
@@ -46,3 +48,7 @@ class TgUserReaction:
     reaction: str
     post_id: str
     book_name: str
+
+@dataclass
+class GenerationLogin:
+    nickname: str

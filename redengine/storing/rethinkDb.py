@@ -35,10 +35,15 @@ class IReDocStore(IDBDocStore):
             return await rdb.db(self.db).table('users').filter({'email': email}).nth(0).default(None).run(
             connection)
 
-    async def addUser(self, email, hashed_password, refresh_token):
+    async def addUserByEmail(self, email, hashed_password, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').insert(
-            {'email': email, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
+            {'email': email, 'password': hashed_password, 'login': email, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
+
+    async def addUser(self, login, hashed_password, refresh_token):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            await rdb.db(self.db).table('users').insert(
+            {'login': login, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
 
     async def updateRefreshToken(self, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
@@ -95,6 +100,10 @@ class IReDocStore(IDBDocStore):
     async def personById(self, user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
           return await rdb.db(Config.db.database).table('users').get(user_id).run(connection)  
+
+    async def personByLogin(self, nickname):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+          return await rdb.db(Config.db.database).table('users').filter({'login': nickname}).nth(0).default(None).run(connection)  
 
     async def messages(self, user_id, chat_user_id, page, limit):
         async with await rdb.connect(host=self.host, port=self.port) as connection:

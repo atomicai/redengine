@@ -39,11 +39,15 @@ class CustomException(HTTPException):
     description = 'Почта уже занята'
 
 
+class CustomLoginException(HTTPException):
+    code = 500
+    description = 'Логин уже занят'
+
 flow = Flow.from_client_config(
     client_config=flowConfig,
     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email",
             "openid"],
-    redirect_uri="http://127.0.0.1:5000/callback"
+    redirect_uri="https://polaroids.ngrok.app/callback"
 )
 
 
@@ -103,6 +107,19 @@ async def chat(user_id):
         return await render_template('chat.html', user=user, chat_user=chat_user)
     return redirect(url_for('start_messaging'))
 
+async def generateName(data):
+    data = await request.get_json()
+    nickname = data['nickname']
+    
+    generated_names = set()
+    while len(generated_names) < 4:
+        name = f"{nickname}_{namegenerator.gen()}"
+        busy_name = await RethinkDb.getLogin(nickname)
+        if not busy_name:
+            generated_names.add(name)
+
+    return jsonify({'generated_names': list(generated_names)})
+
 async def messages(request,user_id):
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 50))
@@ -128,15 +145,17 @@ async def select_user(request):
         return await render_template('select_user.html', users=users)
 
 async def addUser(user):
-        
         hashed_password = generate_password_hash(user.password)
-        existing = await RethinkDb.personByEmail(user.email)
-
+        # existing = await RethinkDb.personByEmail(user.email)
+        # # проверить ,есть ли подобные имена, если нет, то сохраняем, если есть , то выдаем предложенные 4 имени 
+        # if existing:
+        #     raise CustomException()
+        existing = await RethinkDb.personByLogin(user.login)
+        # проверить ,есть ли подобные имена, если нет, то сохраняем, если есть , то выдаем предложенные 4 имени 
         if existing:
-            raise CustomException()
-
-        access_token, refresh_token = await generate_tokens(user.email)
-        await RethinkDb.addUser(user.email,hashed_password,refresh_token)
+            raise CustomLoginException()
+        access_token, refresh_token = await generate_tokens(user.login)
+        await RethinkDb.addUser(user.login,hashed_password,refresh_token)
 
         return {'access_token': access_token, 'refresh_token': refresh_token}
 
@@ -189,10 +208,10 @@ async def authorize_user(request):
             scopes=["https://www.googleapis.com/auth/userinfo.profile",
                     "https://www.googleapis.com/auth/userinfo.email",
                     "openid"],
-            redirect_uri="http://127.0.0.1:5000/callback"
+            redirect_uri="https://polaroids.ngrok.app/callback"
         )
         flow.fetch_token(authorization_response=request.url)
-
+        print(flow)
         credentials = flow.credentials
         request_session = requests.session()
         cached_session = cachecontrol.CacheControl(request_session)
@@ -208,7 +227,7 @@ async def authorize_user(request):
         existing_user = await RethinkDb.personByEmail(user["email"])
         access_token, refresh_token = await generate_tokens(str(user['email']))
         if not existing_user:
-            await RethinkDb.addUser(user["email"], None, refresh_token)
+            await RethinkDb.addUserByEmail(user["email"], None, refresh_token)
 
         return {'access_token': access_token, 'refresh_token': refresh_token}
 
