@@ -253,12 +253,12 @@ async def refresh_user_token(data):
         except jwt.InvalidTokenError:
             return {'message': 'Invalid token'}, 401
 
-async def predict_post(tg_user_id):
+async def predict_post_tg(tg_user_id):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
         print(tg_user_id)
         book_ids = []
         posts = []
-        books_info = await rdb.db('meetingsDb').table('books').get('a1eec874-7d10-4e3d-bcfb-24712bfb0941').run(connection)
+        books_info = await rdb.db('meetingsDb').table('books').get('65cb28eb-55dd-43c8-baac-ba7d6408260b').run(connection)
         print(books_info)
         book_id = books_info["id"]
         posts_info = await rdb.db('meetingsDb').table('posts').filter({'book_id': book_id}).nth(0).default(None).run(connection)
@@ -266,6 +266,19 @@ async def predict_post(tg_user_id):
         book_name = await rdb.db('meetingsDb').table('books').filter({'id': posts_info['book_id']}).nth(0).default(None).run(connection)
     return {'id': posts_info['id'], "author_name": author_name['name'], "book_name": book_name['label'],
             'post': posts_info['context'], "score": 20, "media_path": posts_info['img_path'], "media_type":"image"}
+
+async def predict_post(user_id):
+    async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
+        book_ids = []
+        posts = []
+        books_info = await rdb.db('meetingsDb').table('books').get('65cb28eb-55dd-43c8-baac-ba7d6408260b').run(connection)
+        print(books_info)
+        book_id = books_info["id"]
+        posts_info = await rdb.db('meetingsDb').table('posts').filter({'book_id': book_id}).nth(0).default(None).run(connection)
+        author_name = await rdb.db('meetingsDb').table('authors').filter({'id': posts_info['author_id']}).nth(0).default(None).run(connection)
+        book_name = await rdb.db('meetingsDb').table('books').filter({'id': posts_info['book_id']}).nth(0).default(None).run(connection)
+    return {'id': posts_info['id'], "author_name": author_name['name'], "book_name": book_name['label'],
+            'post': posts_info['context'], "score": 20, "media_path": posts_info['img_path'], "media_type":"image"}           
 
 
 

@@ -34,15 +34,15 @@ services:
     networks:
       - rethinkdb-net
 
-  init-db:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: init-db
-    depends_on:
-      - rethinkdb
-    networks:
-      - rethinkdb-net
+  # init-db:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: init-db
+  #   depends_on:
+  #     - rethinkdb
+  #   networks:
+  #     - rethinkdb-net
 
   redis:
     image: redis:latest

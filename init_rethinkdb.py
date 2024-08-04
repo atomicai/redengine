@@ -8,7 +8,7 @@ with open(str(Path(os.getcwd()) / "config.yaml")) as fp:
     config = yaml.safe_load(fp)
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host="rethinkdb", port=config["db"]["port"])
+conn = rdb.connect(host='localhost', port=28015)
 
 if not rdb.db_list().contains(config["db"]["database"]).run(conn):
     rdb.db_create(config["db"]["database"]).run(conn)
