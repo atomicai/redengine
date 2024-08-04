@@ -7,21 +7,17 @@ import ast
 from pathlib import Path
 from typing import List, Union
 
-import numpy as np
-
-import simplejson
-
 import json
 
-data_dir = Path.home() / "Projects" / "BotBot" / "polaroids" / "polaroids" / "dataLoads" / "dataSets"
-filename = Path("/oikSmall.csv")
+# data_dir = Path.home() / "projects" / "BotBot" / "polaroids" / "polaroids" / "dataLoads" / "dataSets"
+# filename = Path("/oikSmall.csv")
 
 rdb = r.RethinkDB()
 conn = rdb.connect(host='localhost', port=28015)
 
 
 
-data_dir = Path.home() / "Projects" / "BotBot" / "polaroids" / "img" / "dataLoads" / "dataSets/"
+data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
 filename = Path("polaroids.ai.data.json")
 data_dir = Path(data_dir)
 with open(data_dir / filename) as json_file:
