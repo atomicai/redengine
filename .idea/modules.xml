@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/redengine.iml" filepath="$PROJECT_DIR$/.idea/redengine.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/BotBot.iml" filepath="$PROJECT_DIR$/.idea/BotBot.iml" />
     </modules>
   </component>
 </project>

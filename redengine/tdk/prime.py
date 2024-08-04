@@ -12,6 +12,7 @@ import os
 import pathlib
 from pathlib import Path
 import yaml
+import uuid
 import requests
 from redengine.storing.rethinkDb import IReDocStore
 from flask import Flask, session, abort, redirect, request
@@ -154,9 +155,10 @@ async def addUser(user):
         # проверить ,есть ли подобные имена, если нет, то сохраняем, если есть , то выдаем предложенные 4 имени 
         if existing:
             raise CustomLoginException()
-        access_token, refresh_token = await generate_tokens(user.login)
-        await RethinkDb.addUser(user.login,hashed_password,refresh_token)
-
+        
+        user_id = uuid.uuid4()
+        access_token, refresh_token = await generate_tokens(str(user_id))
+        user = await RethinkDb.addUser(str(user_id),user.login,hashed_password,refresh_token)
         return {'access_token': access_token, 'refresh_token': refresh_token}
 
 async def addTgUser(data):
@@ -180,11 +182,13 @@ async def addTgUserReaction(data):
 # data.tg_user_id, data.username, data.age, data.describe
 
 async def loginUser(user):
-        person = await RethinkDb.personByEmail(user.email)
-
-        if person['password'] and user and check_password_hash(person['password'], user.password):
-            access_token, refresh_token = await generate_tokens(user.email)
-            
+        person = None
+        if user.email:
+            person = await RethinkDb.personByEmail(user.email)
+        else:
+            person = await RethinkDb.personByLogin(user.login)
+        if person['password'] and person and check_password_hash(person['password'], user.password):
+            access_token, refresh_token = await generate_tokens(person["user_id"])
             await RethinkDb.updateRefreshToken(refresh_token)
             
             return {'access_token': access_token, 'refresh_token': refresh_token}

@@ -11,8 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post, \
-    delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -93,7 +92,6 @@ async def register_google() -> redirect:
 
 @app.route('/callback')
 async def authorize():
-    print('33333333333333',request)
     return await authorize_user(request)
 
 @app.route("/registration", methods=["POST"])
@@ -181,6 +179,11 @@ async def ws(user_id):
 @app.route('/predict/<int:tg_user_id>', methods=['GET'])
 async def predict(tg_user_id) -> any:
     return await predict_post(tg_user_id)
+
+@app.route('/predict', methods=['GET'])
+@authorized
+async def prediction(user_id) -> any:
+    return await predict(user_id)
 
 @app.route('/media/<path:filename>', methods=['GET'])
 async def get_media(filename):

@@ -40,13 +40,15 @@ class IReDocStore(IDBDocStore):
             await rdb.db(self.db).table('users').insert(
             {'email': email, 'password': hashed_password, 'login': email, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
 
-    async def addUser(self, login, hashed_password, refresh_token):
+    async def addUser(self,user_id, login, hashed_password, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
-            await rdb.db(self.db).table('users').insert(
-            {'login': login, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
+            return await rdb.db(self.db).table('users').insert(
+            {'user_id': user_id,'login': login, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
 
     async def updateRefreshToken(self, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
+            # table_info=await rdb.db(self.db).table('users').info().run(connection)
+            # print(table_info)
             return await rdb.db(self.db).table('users').update({'refresh_token': refresh_token}).run(connection)
 
     async def deleteAccount(self, id):
