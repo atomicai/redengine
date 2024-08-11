@@ -33,7 +33,7 @@ if not rdb.db_list().contains('meetingsDb').run(conn):
     rdb.db_create('meetingsDb').run(conn)
 
 if not rdb.db('meetingsDb').table_list().contains('books').run(conn):
-    rdb.db('meetingsDb').table_create('books',primary_key='idx').run(conn)
+    rdb.db('meetingsDb').table_create('books').run(conn)
 
 
 data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
@@ -50,5 +50,5 @@ with open(data_dir / filename) as json_file:
 
             id = uuid.uuid4()
             if "type" in p and p["type"]=='book':
-                rdb.db('meetingsDb').table('books').insert({'label': p["title"], 'id': str(id)}).run(conn)
+                rdb.db('meetingsDb').table('books').insert({'label': p["title"]}).run(conn)
 

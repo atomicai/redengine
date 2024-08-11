@@ -5,7 +5,7 @@ import random
 from werkzeug.exceptions import HTTPException
 import jwt
 from datetime import datetime, timedelta
-from quart import Quart, redirect, url_for, session, request, jsonify, g,render_template,websocket as wsd
+from quart import Quart, redirect, url_for, session, request, jsonify, g,render_template,websocket as wsd,send_file
 from authlib.integrations.starlette_client import OAuth
 import rethinkdb as r
 import os
@@ -23,6 +23,7 @@ import google.auth.transport.requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from typing import Dict, Any, Optional, Tuple, List
 from redengine.configuring import Config
+import base64
 
 
 rdb = r.RethinkDB()
@@ -267,22 +268,41 @@ async def predict_post_tg(tg_user_id):
     return {'id': posts_info['id'], "author_name": author_name['name'], "book_name": book_name['label'],
             'post': posts_info['context'], "score": 20, "media_path": posts_info['img_path'], "media_type":"image"}
 
-async def predict_post(user_id):
+async def predict_posts(user_id):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
-        book_ids = []
-        posts = []
-        books_info = await rdb.db('meetingsDb').table('books').get('65cb28eb-55dd-43c8-baac-ba7d6408260b').run(connection)
-        print(books_info)
-        book_id = books_info["id"]
-        posts_info = await rdb.db('meetingsDb').table('posts').filter({'book_id': book_id}).nth(0).default(None).run(connection)
-        author_name = await rdb.db('meetingsDb').table('authors').filter({'id': posts_info['author_id']}).nth(0).default(None).run(connection)
-        book_name = await rdb.db('meetingsDb').table('books').filter({'id': posts_info['book_id']}).nth(0).default(None).run(connection)
-    return {'id': posts_info['id'], "author_name": author_name['name'], "book_name": book_name['label'],
-            'post': posts_info['context'], "score": 20, "media_path": posts_info['img_path'], "media_type":"image"}           
+        random_posts = await rdb.db('meetingsDb').table('posts').sample(5).eq_join('book_id', rdb.db(Config.db.database).table('books')).zip().eq_join('author_id', rdb.db(Config.db.database).table('authors')).zip().run(connection) 
+    result = []
+    for post in random_posts:
+        post = {'id': post['id'], "author_name": post['name'], "book_name": post['label'],
+        'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"], "is_speaker": post["is_speaker"]} 
+        result.append(post)
+    
+    return jsonify(result)
+        
 
 
+async def addFavorite(user_id, data):
+    if not user_id or not data:
+        return jsonify({"error": "user_id and post_text are required"}), 400
+    
+    await RethinkDb.addFavorites(user_id, data['post_id'])
 
+    return 'ok'
 
+async def showFavorites(user_id):
+    favorites = await RethinkDb.showFavorites(user_id)
+
+    post_ids = []
+    async for id in favorites:
+            post_ids.append(id)
+    posts = await RethinkDb.PostById(post_ids)
+    result = []
+    async for post in posts:
+            post = {'id': post['id'], "author_name": post['name'], "book_name": post['label'],
+            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"], "is_speaker": post["is_speaker"]} 
+            result.append(post)
+    
+    return jsonify(result)
 
 
     # async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:

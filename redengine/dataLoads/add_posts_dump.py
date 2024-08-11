@@ -19,7 +19,7 @@ if not rdb.db_list().contains('meetingsDb').run(conn):
     rdb.db_create('meetingsDb').run(conn)
 
 if not rdb.db('meetingsDb').table_list().contains('posts').run(conn):
-    rdb.db('meetingsDb').table_create('posts',primary_key='idx').run(conn)
+    rdb.db('meetingsDb').table_create('posts').run(conn)
 
 data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
 filename = Path("polaroids.ai.data.json")
@@ -40,5 +40,5 @@ with open(data_dir / filename) as json_file:
         if p["has_image"]:
             img_path = p["img_path"]
         if book and author:
-            rdb.db('meetingsDb').table('posts').insert({'context': p["content"], 'book_id': str(book["id"]),'author_id': str(author["id"]),'id': str(id),
+            rdb.db('meetingsDb').table('posts').insert({'context': p["content"], 'book_id': str(book["id"]),'author_id': str(author["id"]),
                                                           'has_image':p["has_image"], 'img_path':img_path}).run(conn)

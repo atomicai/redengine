@@ -43,6 +43,17 @@ class TgUserInfo:
     describe: str
 
 @dataclass
+class UserPhoto:
+    photo_ids: Optional[List[str]] = None
+    photo_path: Optional[List[str]] = None
+
+@dataclass
+class UserInfo:
+    username: str
+    age: int
+    describe: str
+
+@dataclass
 class TgUserReaction:
     tg_user_id: int
     reaction: str
@@ -52,3 +63,7 @@ class TgUserReaction:
 @dataclass
 class GenerationLogin:
     nickname: str
+
+@dataclass
+class Favorites:
+    post_id: str

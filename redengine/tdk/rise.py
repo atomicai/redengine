@@ -1,9 +1,9 @@
 from functools import wraps
 from pathlib import Path
 from typing import Dict, Any, List
-from redengine.tdk.user.schemas import Token, userIdChat, RegisterFormTelegram, TgUserPhoto, TgUserInfo, TgUserReaction, GenerationLogin,RegisterForm
+from redengine.tdk.user.schemas import Token, userIdChat, RegisterFormTelegram, TgUserPhoto, TgUserInfo, TgUserReaction, GenerationLogin, RegisterForm, Favorites, UserPhoto, UserInfo
 from authlib.integrations.starlette_client import OAuth
-from dataclasses import dataclass,asdict
+from dataclasses import dataclass, asdict
 from redengine.tdk.lib.asdict_without_none import asdict_without_none
 import requests
 
@@ -11,7 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser,predict_post
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, showFavorites
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -123,6 +123,18 @@ async def addTgUserInformation(data: TgUserInfo):
     data = asdict_without_none(data)
     return await addTgUserInfo(data)
 
+@app.route("/add-user-photo", methods=["POST"])
+@validate_request(UserPhoto)
+async def addTgUserPhoto(data: TgUserPhoto):
+    data = asdict_without_none(data)
+    return await addTelegramUserPhoto(data)
+
+@app.route("/add-userinfo", methods=["POST"])
+@validate_request(UserInfo)
+async def addTgUserInformation(data: TgUserInfo):
+    data = asdict_without_none(data)
+    return await addTgUserInfo(data)
+
 @app.route("/add-tg-reaction", methods=["POST"])
 @validate_request(TgUserReaction)
 async def addTelegramUserReaction(data: TgUserReaction):
@@ -145,7 +157,7 @@ async def get_users() -> List[Dict[str, Any]]:
 async def delete(user_id):
     return await delete_account(user_id)
    
-@app.route('/start_messaging', methods=['GET', 'POST'])
+@app.route('/start-messaging', methods=['GET', 'POST'])
 @authorized
 async def start_chat(user_id):
     return await start_messaging(request,user_id)
@@ -176,21 +188,36 @@ async def ws(user_id):
 # async def predict() -> any:
 #     return asyncio.run(predict_post())
 
+@app.route('/predict-post', methods=['GET'])
+@authorized
+async def prediction(user_id):
+    return await predict_posts(user_id)
+
 @app.route('/predict/<int:tg_user_id>', methods=['GET'])
 async def predict(tg_user_id) -> any:
     return await predict_post_tg(tg_user_id)
 
-@app.route('/predict_post', methods=['GET'])
-@authorized
-async def prediction(user_id) -> any:
-    return await predict_post(user_id)
+
 
 @app.route('/media/<path:filename>', methods=['GET'])
 async def get_media(filename):
     try:
-        return await send_file(f'./img/{filename}.png')
+        return await send_file(filename)
     except FileNotFoundError:
         return jsonify({"message": "File not found"}), 404
+    
+@app.route('/add-favorite', methods=['POST'])
+@authorized
+@validate_request(Favorites)
+async def add_favorite(user_id,data: Favorites):
+    data = asdict(data)
+    return await addFavorite(user_id, data)
+    
+@app.route('/show-favorites', methods=['GET'])
+@authorized
+async def show_favorites(user_id):
+    return await showFavorites(user_id)
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8000, debug=True)

@@ -31,14 +31,11 @@ with open(data_dir / filename) as json_file:
         if "author" not in p:
             p["author"]=None
 
-
-
         repeat = list(rdb.db('meetingsDb').table('authors').filter({'name':p["author"]}).run(conn))
 
         if not repeat:
 
-            id = uuid.uuid4()
             if "speaker" not in p:
-                rdb.db('meetingsDb').table('authors').insert({'name': p["author"],'id': str(id),'is_speaker':False}).run(conn)
+                rdb.db('meetingsDb').table('authors').insert({'name': p["author"],'is_speaker':False}).run(conn)
             else:
-                rdb.db('meetingsDb').table('authors').insert({'name': p["author"],'id': str(id),'is_speaker':True}).run(conn)
+                rdb.db('meetingsDb').table('authors').insert({'name': p["author"],'is_speaker':True}).run(conn)

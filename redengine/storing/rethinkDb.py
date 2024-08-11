@@ -106,6 +106,18 @@ class IReDocStore(IDBDocStore):
     async def personByLogin(self, nickname):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
           return await rdb.db(Config.db.database).table('users').filter({'login': nickname}).nth(0).default(None).run(connection)  
+        
+    async def addFavorites(self, user_id, post_id):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+          return await rdb.db(Config.db.database).table('favorites_posts').insert({'user_id': user_id,'post_id': post_id}).run(connection)  
+        
+    async def showFavorites(self, user_id):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+          return  await rdb.db(Config.db.database).table('favorites_posts').filter({'user_id': user_id}).map(lambda doc: doc['post_id']).run(connection)
+        
+    async def PostById(self, post_ids):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+          return await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(post_ids).contains(post['id'])).eq_join('book_id', rdb.db(Config.db.database).table('books')).zip().eq_join('author_id', rdb.db(Config.db.database).table('authors')).zip().run(connection)  
 
     async def messages(self, user_id, chat_user_id, page, limit):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
