@@ -24,6 +24,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from typing import Dict, Any, Optional, Tuple, List
 from redengine.configuring import Config
 import base64
+import aiofiles
 
 
 rdb = r.RethinkDB()
@@ -134,7 +135,7 @@ async def messages(request,user_id):
 
     return jsonify(messages)
 
-async def start_messaging(request,user_id):
+async def start_messaging(request, user_id):
         if request.method == 'POST':
             return await render_template('index.html')
 
@@ -168,14 +169,39 @@ async def addTgUser(data):
              await RethinkDb.telegramRegistration(data["tg_user_id"])
         return 'ok'
 
+async def save_photo(photo, user_id):
+    user_folder = os.path.join(Config.folder.photo, str(user_id))
+
+    # Создаем директорию для пользователя, если она не существует
+    if not os.path.exists(user_folder):
+        os.makedirs(user_folder)
+
+    # Путь для сохранения файла
+    file_path = os.path.join(user_folder, photo.filename)
+
+    # Асинхронное сохранение файла
+    async with aiofiles.open(file_path, 'wb') as out_file:
+        content = await photo.read()
+        await out_file.write(content)
+
+    return file_path
         
 async def addTelegramUserPhoto(data):
         await RethinkDb.telegramUserAddPhoto(data)  
         return 'ok'   
 
+async def addUserPhoto(user_id, photo):
+        file_path = save_photo(photo, user_id)
+        await RethinkDb.userAddPhoto(user_id, file_path)  
+        return 'ok'
+
 async def addTgUserInfo(data):
     await RethinkDb.telegramUserAddInfo(data)  
     return 'ok'     
+
+async def addUserInfo(user_id, data):
+    await RethinkDb.userAddInfo(user_id, data)  
+    return 'ok' 
 
 async def addTgUserReaction(data):
     userReaction = data.dict(exclude_unset=True)  

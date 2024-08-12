@@ -11,7 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, showFavorites
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, showFavorites, addUserInfo, addUserPhoto
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -111,17 +111,17 @@ async def generate_names(data: GenerationLogin):
     data=asdict(data)
     return await generateName(data)
 
-@app.route("/add-tg-photo", methods=["POST"])
-@validate_request(TgUserPhoto)
-async def addTgUserPhoto(data: TgUserPhoto):
-    data = asdict_without_none(data)
-    return await addTelegramUserPhoto(data)
+# @app.route("/add-tg-photo", methods=["POST"])
+# @validate_request(TgUserPhoto)
+# async def addTgUserPhoto(data: TgUserPhoto):
+#     data = asdict_without_none(data)
+#     return await addTelegramUserPhoto(data)
 
-@app.route("/add-tg-userinfo", methods=["POST"])
-@validate_request(TgUserInfo)
-async def addTgUserInformation(data: TgUserInfo):
-    data = asdict_without_none(data)
-    return await addTgUserInfo(data)
+# @app.route("/add-tg-userinfo", methods=["POST"])
+# @validate_request(TgUserInfo)
+# async def addTgUserInformation(data: TgUserInfo):
+#     data = asdict_without_none(data)
+#     return await addTgUserInfo(data)
 
 @app.route("/add-user-photo", methods=["POST"])
 @validate_request(UserPhoto)
@@ -131,15 +131,22 @@ async def addTgUserPhoto(data: TgUserPhoto):
 
 @app.route("/add-userinfo", methods=["POST"])
 @validate_request(UserInfo)
-async def addTgUserInformation(data: TgUserInfo):
+async def addUserInformation(user_id, data: UserInfo):
     data = asdict_without_none(data)
-    return await addTgUserInfo(data)
+    return await addUserInfo(user_id, data)
 
 @app.route("/add-tg-reaction", methods=["POST"])
 @validate_request(TgUserReaction)
 async def addTelegramUserReaction(data: TgUserReaction):
     data = asdict(data)
     return await addTgUserReaction(data)
+
+@app.route('/upload-photo', methods=['POST'])
+@authorized
+async def upload_photo(user_id):
+    photo = await request.files['photo']
+    return await addUserInfo(user_id, photo)
+    
 
 @app.route("/refresh-token", methods=["POST"])
 @validate_request(Token)

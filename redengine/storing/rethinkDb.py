@@ -74,9 +74,17 @@ class IReDocStore(IDBDocStore):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').filter({'tg_user_id': user_photo["tg_user_id"]}).update(user_photo).run(connection)  
 
+    async def userAddPhoto(self, user_id, file_path):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            await rdb.db(self.db).table('users').filter({'user_id': user_id}).update({'file_path': file_path}).run(connection)  
+
     async def telegramUserAddInfo(self, user_info):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').filter({'tg_user_id': user_info["tg_user_id"]}).update(user_info).run(connection)   
+
+    async def userAddInfo(self, user_id, user_info):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            await rdb.db(self.db).table('users').filter({'user_id': user_id}).update(user_info).run(connection)   
 
     async def sendReaction(self, user_reaction):
         (rdb.db('meetingsBook').table('events_' + transliterate(user_reaction.book_name.replace(" ", "_")))
