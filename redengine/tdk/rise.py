@@ -1,17 +1,17 @@
 from functools import wraps
 from pathlib import Path
 from typing import Dict, Any, List
-from redengine.tdk.user.schemas import Token, userIdChat, RegisterFormTelegram, TgUserPhoto, TgUserInfo, TgUserReaction, GenerationLogin, RegisterForm, Favorites, UserPhoto, UserInfo
+from redengine.tdk.user.schemas import Token, userIdChat, RegisterFormTelegram, TgUserPhoto, TgUserInfo, TgUserReaction, GenerationLogin, RegisterForm, Favorites, UserPhoto, UserInfo, Posts, UserReaction
 from authlib.integrations.starlette_client import OAuth
 from dataclasses import dataclass, asdict
 from redengine.tdk.lib.asdict_without_none import asdict_without_none
 import requests
-
+import datetime
 import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, showFavorites, addUserInfo, addUserPhoto
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -62,7 +62,7 @@ def authorized(f):
             return jsonify({'message': 'Token is missing!'}), 401
 
         try:
-            data = jwt.decode(token,Config.jwt_secret_key , algorithms=["HS256"])
+            data = jwt.decode(token,Config.jwt_secret_key , algorithms=["HS256"], leeway=datetime.timedelta(seconds=60*60))
             user_id = data['user_id']
         except jwt.ExpiredSignatureError:
             return jsonify({'message': 'Token has expired!'}), 401
@@ -123,11 +123,11 @@ async def generate_names(data: GenerationLogin):
 #     data = asdict_without_none(data)
 #     return await addTgUserInfo(data)
 
-@app.route("/add-user-photo", methods=["POST"])
-@validate_request(UserPhoto)
-async def addTgUserPhoto(data: TgUserPhoto):
-    data = asdict_without_none(data)
-    return await addTelegramUserPhoto(data)
+# @app.route("/add-user-photo", methods=["POST"])
+# @validate_request(UserPhoto)
+# async def addTgUserPhoto(data: TgUserPhoto):
+#     data = asdict_without_none(data)
+#     return await addTelegramUserPhoto(data)
 
 @app.route("/add-userinfo", methods=["POST"])
 @validate_request(UserInfo)
@@ -141,13 +141,19 @@ async def addTelegramUserReaction(data: TgUserReaction):
     data = asdict(data)
     return await addTgUserReaction(data)
 
+@app.route("/add-reaction", methods=["POST"])
+@authorized
+@validate_request(UserReaction)
+async def addReaction(user_id,data: UserReaction):
+    data = asdict(data)
+    return await addUserReaction(user_id,data)
+
 @app.route('/upload-photo', methods=['POST'])
 @authorized
 async def upload_photo(user_id):
     photo = await request.files['photo']
-    return await addUserInfo(user_id, photo)
+    return await addUserPhoto(user_id, photo)
     
-
 @app.route("/refresh-token", methods=["POST"])
 @validate_request(Token)
 async def refresh_token(data: Token):
@@ -157,7 +163,6 @@ async def refresh_token(data: Token):
 @authorized
 async def get_users() -> List[Dict[str, Any]]:
     return asyncio.run(get_all_users())
-
 
 @app.route('/delete', methods=['DELETE'])
 @authorized
@@ -195,16 +200,16 @@ async def ws(user_id):
 # async def predict() -> any:
 #     return asyncio.run(predict_post())
 
-@app.route('/predict-post', methods=['GET'])
+@app.route('/posts', methods=['POST'])
 @authorized
-async def prediction(user_id):
-    return await predict_posts(user_id)
+@validate_request(Posts)
+async def prediction(user_id, data: Posts):
+    data = asdict(data)
+    return await predict_posts(user_id, data)
 
 @app.route('/predict/<int:tg_user_id>', methods=['GET'])
 async def predict(tg_user_id) -> any:
     return await predict_post_tg(tg_user_id)
-
-
 
 @app.route('/media/<path:filename>', methods=['GET'])
 async def get_media(filename):

@@ -38,12 +38,12 @@ class IReDocStore(IDBDocStore):
     async def addUserByEmail(self, email, hashed_password, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').insert(
-            {'email': email, 'password': hashed_password, 'login': email, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
+            {'email': email, 'password': hashed_password, 'login': email, 'refresh_token': refresh_token, 'active': True, 'created_at': rdb.now()}).run(connection)      
 
     async def addUser(self,user_id, login, hashed_password, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             return await rdb.db(self.db).table('users').insert(
-            {'user_id': user_id,'login': login, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at': datetime.now(rdb.make_timezone('00:00'))}).run(connection)      
+            {'user_id': user_id,'login': login, 'password': hashed_password, 'refresh_token': refresh_token, 'active': True, 'created_at':rdb.now()}).run(connection)      
 
     async def updateRefreshToken(self, refresh_token):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
@@ -68,7 +68,7 @@ class IReDocStore(IDBDocStore):
     async def telegramRegistration(self, tg_user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').insert(
-            {'tg_user_id': tg_user_id, 'active': True, 'created_at': datetime.utcnow().isoformat()}).run(connection)     
+            {'tg_user_id': tg_user_id, 'active': True, 'created_at': rdb.now()}).run(connection)     
 
     async def telegramUserAddPhoto(self, user_photo):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
@@ -86,10 +86,14 @@ class IReDocStore(IDBDocStore):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').filter({'user_id': user_id}).update(user_info).run(connection)   
 
-    async def sendReaction(self, user_reaction):
-        (rdb.db('meetingsBook').table('events_' + transliterate(user_reaction.book_name.replace(" ", "_")))
-        .insert(user_reaction).run(
-            conn))
+    async def sendReaction(self,user_id, user_reaction):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+         now = datetime.now()
+         user_reaction['user_id']= user_id
+         user_reaction['created_at']=rdb.now()
+         year_month = now.strftime("%Y_%m")
+         table_name = f"events_{year_month}"
+         await rdb.db(self.db).table(table_name).insert(user_reaction).run(connection)
 
     async def cursorChat(self, user_id, chat_user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
@@ -104,7 +108,7 @@ class IReDocStore(IDBDocStore):
                 'sender_id': user_id,
                 'receiver_id': chat_user_id,
                 'message': message,
-                'created_at': datetime.utcnow()
+                'created_at': rdb.now()
             }).run(connection)  
 
     async def personById(self, user_id):

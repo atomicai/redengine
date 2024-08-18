@@ -86,7 +86,7 @@ async def websocket(user_id):
     await asyncio.gather(send_messages(), receive_messages())
 
 async def generate_tokens(user_id):
-    access_token = jwt.encode({'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(minutes=15)},
+    access_token = jwt.encode({'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(minutes=60)},
                               str(Config.jwt_secret_key), algorithm='HS256')
     refresh_token = jwt.encode({'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(days=7)},
                                str(Config.jwt_secret_key), algorithm='HS256')
@@ -206,6 +206,10 @@ async def addUserInfo(user_id, data):
 async def addTgUserReaction(data):
     userReaction = data.dict(exclude_unset=True)  
     await RethinkDb.sendReaction(userReaction)  
+
+async def addUserReaction(user_id, data):
+    await RethinkDb.sendReaction(user_id,data)  
+    return 'ok' 
 # data.tg_user_id, data.username, data.age, data.describe
 
 async def loginUser(user):
@@ -266,13 +270,13 @@ async def refresh_user_token(data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
         refresh_token = data.refresh_token
         try:
-            decoded = jwt.decode(refresh_token, JWT_SECRET_KEY, algorithms=['HS256'])
+            decoded = jwt.decode(refresh_token, Config.jwt_secret_key, algorithms=['HS256'])
             user_id = decoded['user_id']
-            user = await RethinkDb.personByEmail(user_id)
+            user = await RethinkDb.personById(user_id)
 
             if user and user['refresh_token'] == refresh_token:
                 access_token, new_refresh_token = await generate_tokens(user_id)
-                await rdb.db('meetingsBook').table('users').filter({'email': user_id}).update(
+                await rdb.db(Config.db.database).table('users').get({user_id}).update(
                     {'refresh_token': new_refresh_token}).run(connection)
             return {'access_token': access_token, 'refresh_token': new_refresh_token}
         except jwt.ExpiredSignatureError:
@@ -294,17 +298,75 @@ async def predict_post_tg(tg_user_id):
     return {'id': posts_info['id'], "author_name": author_name['name'], "book_name": book_name['label'],
             'post': posts_info['context'], "score": 20, "media_path": posts_info['img_path'], "media_type":"image"}
 
-async def predict_posts(user_id):
+async def predict_posts1(user_id, data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
-        random_posts = await rdb.db('meetingsDb').table('posts').sample(5).eq_join('book_id', rdb.db(Config.db.database).table('books')).zip().eq_join('author_id', rdb.db(Config.db.database).table('authors')).zip().run(connection) 
-    result = []
-    for post in random_posts:
-        post = {'id': post['id'], "author_name": post['name'], "book_name": post['label'],
-        'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"], "is_speaker": post["is_speaker"]} 
-        result.append(post)
-    
-    return jsonify(result)
+        random_posts = await rdb.db('meetingsDb').table('posts').sample(3).run(connection) 
         
+        
+        result = []
+        for post in random_posts:
+            post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('speaker_id', rdb.db(Config.db.database).table('movie_speakers')).zip().eq_join('movie_id', rdb.db(Config.db.database).table('movies')).zip().nth(0).default(None).run(connection)
+
+            keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
+   
+            keyphrases = await rdb.db(Config.db.database).table('keyphrases').filter(lambda keyphrase: rdb.expr(post_info['keyphrases_ids']).contains(keyphrase['id'])).run(connection)
+
+            post_keyphrases = []
+            async for phrase in keyphrases:
+                post_keyphrases.append(phrase['phrase'])
+            post_keywords = []
+            async for word in keywords:
+                post_keywords.append(word['word'])
+            # post = {'id': post['id'], "author_name": post['name'], "book_name": post['label'],
+            # 'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"], "is_speaker": post["is_speaker"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'] } 
+            post = {'id': post['id'],
+            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'],"keyphrases":post_keyphrases,"keywords":post_keywords } 
+            result.append(post)
+    
+        return jsonify(result[:data["top"]])
+        
+async def predict_posts(user_id, data):
+    async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
+        random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection) 
+
+        posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(random_posts).contains(post['id'])).run(connection)
+        result = []
+        async for post in posts:
+          if post['type'] == 'movie':
+            post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('speaker_id', rdb.db(Config.db.database).table('movie_speakers')).zip().eq_join('movie_id', rdb.db(Config.db.database).table('movies')).zip().nth(0).default(None).run(connection)
+            keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
+            
+            keyphrases = await rdb.db(Config.db.database).table('keyphrases').filter(lambda keyphrase: rdb.expr(post_info['keyphrases_ids']).contains(keyphrase['id'])).run(connection)
+            
+            post_keyphrases = []
+            async for phrase in keyphrases:
+                post_keyphrases.append(phrase)
+            post_keywords = []
+            async for word in keywords:
+                post_keywords.append(word)
+
+            post = {'id': post['id'],
+            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            result.append(post)
+
+          elif post['type'] == 'book':
+            post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('book_id', rdb.db(Config.db.database).table('books')).zip().eq_join('author_id', rdb.db(Config.db.database).table('authors')).zip().nth(0).default(None).run(connection)
+
+            keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
+            
+            keyphrases = await rdb.db(Config.db.database).table('keyphrases').filter(lambda keyphrase: rdb.expr(post_info['keyphrases_ids']).contains(keyphrase['id'])).run(connection)
+            
+            post_keyphrases = []
+            async for phrase in keyphrases:
+                post_keyphrases.append(phrase)
+            post_keywords = []
+            async for word in keywords:
+                post_keywords.append(word)
+
+            post = {'id': post['id'],
+            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            result.append(post)
+        return jsonify(result[0:data["top"]])
 
 
 async def addFavorite(user_id, data):
@@ -316,16 +378,48 @@ async def addFavorite(user_id, data):
     return 'ok'
 
 async def showFavorites(user_id):
-    favorites = await RethinkDb.showFavorites(user_id)
+    async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
+        favorites = await RethinkDb.showFavorites(user_id)
 
-    post_ids = []
-    async for id in favorites:
+        post_ids = []
+        async for id in favorites:
             post_ids.append(id)
-    posts = await RethinkDb.PostById(post_ids)
-    result = []
-    async for post in posts:
-            post = {'id': post['id'], "author_name": post['name'], "book_name": post['label'],
-            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"], "is_speaker": post["is_speaker"]} 
+        posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(post_ids).contains(post['id'])).run(connection)
+        result = []
+        async for post in posts:
+          if post['type'] == 'movie':
+            post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('speaker_id', rdb.db(Config.db.database).table('movie_speakers')).zip().eq_join('movie_id', rdb.db(Config.db.database).table('movies')).zip().nth(0).default(None).run(connection)
+            keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
+            
+            keyphrases = await rdb.db(Config.db.database).table('keyphrases').filter(lambda keyphrase: rdb.expr(post_info['keyphrases_ids']).contains(keyphrase['id'])).run(connection)
+            
+            post_keyphrases = []
+            async for phrase in keyphrases:
+                post_keyphrases.append(phrase)
+            post_keywords = []
+            async for word in keywords:
+                post_keywords.append(word)
+
+            post = {'id': post['id'],
+            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            result.append(post)
+
+          elif post['type'] == 'book':
+            post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('book_id', rdb.db(Config.db.database).table('books')).zip().eq_join('author_id', rdb.db(Config.db.database).table('authors')).zip().nth(0).default(None).run(connection)
+
+            keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
+            
+            keyphrases = await rdb.db(Config.db.database).table('keyphrases').filter(lambda keyphrase: rdb.expr(post_info['keyphrases_ids']).contains(keyphrase['id'])).run(connection)
+            
+            post_keyphrases = []
+            async for phrase in keyphrases:
+                post_keyphrases.append(phrase)
+            post_keywords = []
+            async for word in keywords:
+                post_keywords.append(word)
+
+            post = {'id': post['id'],
+            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
             result.append(post)
     
     return jsonify(result)

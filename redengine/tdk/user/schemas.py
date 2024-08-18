@@ -30,6 +30,11 @@ class RegisterFormTelegram:
     tg_user_id: int
 
 @dataclass
+class Posts:
+    previous_ids: Optional[List[str]]
+    top: int
+
+@dataclass
 class TgUserPhoto:
     tg_user_id: int
     photo_ids: Optional[List[str]] = None
@@ -59,6 +64,11 @@ class TgUserReaction:
     reaction: str
     post_id: str
     book_name: str
+
+@dataclass
+class UserReaction:
+    reaction: str
+    post_id: str
 
 @dataclass
 class GenerationLogin:
