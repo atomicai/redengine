@@ -11,11 +11,12 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
 import dotenv
+import pytz
 import yaml
 import rethinkdb as r
 from google.oauth2 import id_token
@@ -26,7 +27,7 @@ from redengine.configuring import Config
 dotenv.load_dotenv()
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host='localhost', port=28015)
+conn = rdb.connect(host=Config.app.host, port=28015)
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 # client_secrets_file = os.path.join(pathlib.Path(__file__).parent, "client_secret.json")
@@ -179,6 +180,16 @@ async def start_chat(user_id):
 @validate_request(RegisterForm)
 async def select_user_to_chat():
     return await select_user(request)
+
+@app.route('/count_posts', methods=['GET'])
+@authorized
+async def count_posts(user_id):
+    # Получаем параметры запроса
+
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    return await postsOfTime(user_id,start_time,end_time)
+
     
 @app.route('/chat', methods=['GET'])
 @authorized
@@ -232,4 +243,4 @@ async def show_favorites(user_id):
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host=Config.app.host, port=8000, debug=True)

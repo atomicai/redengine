@@ -25,6 +25,8 @@ from typing import Dict, Any, Optional, Tuple, List
 from redengine.configuring import Config
 import base64
 import aiofiles
+#import quart_swagger_ui as qswagger
+import pytz
 
 
 rdb = r.RethinkDB()
@@ -194,6 +196,16 @@ async def addUserPhoto(user_id, photo):
         file_path = save_photo(photo, user_id)
         await RethinkDb.userAddPhoto(user_id, file_path)  
         return 'ok'
+
+
+   # Swagger UI настройки
+# qswagger.swagger_ui(app, swagger_url="/swagger", api_url="/openapi.json")
+
+async def postsOfTime(user_id, start_time, end_time):
+        start_time = datetime.fromisoformat(start_time).replace(tzinfo=pytz.utc)
+        end_time = datetime.fromisoformat(end_time).replace(tzinfo=pytz.utc)
+        count = await RethinkDb.countPostsOfTime(user_id, start_time, end_time)  
+        return  {'count': count}
 
 async def addTgUserInfo(data):
     await RethinkDb.telegramUserAddInfo(data)  

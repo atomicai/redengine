@@ -4,11 +4,12 @@ import async_timeout
 import rethinkdb as r
 import aioredis
 import json
+from redengine.configuring import Config
 from polaroids.polaroids.tdk.prime import ActionPost
 STOPWORD = "STOP"
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host='localhost', port=28015)
+conn = rdb.connect(host=Config.app.host, port=28015)
 async def reader(channel: aioredis.client.PubSub):
     redis = await aioredis.from_url("redis://localhost")
     while True:

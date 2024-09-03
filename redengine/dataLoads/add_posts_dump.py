@@ -13,7 +13,7 @@ import json
 # filename = Path("/oikSmall.csv")
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host='localhost', port=28015)
+conn = rdb.connect(host=Config.app.host, port=28015)
 
 if not rdb.db_list().contains('meetingsDb').run(conn):
     rdb.db_create('meetingsDb').run(conn)

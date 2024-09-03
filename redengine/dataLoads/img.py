@@ -1,6 +1,6 @@
 import ast
 from pathlib import Path
-
+from redengine.configuring import Config
 import rethinkdb as r
 import uuid
 import ast
@@ -13,7 +13,7 @@ import json
 # filename = Path("/oikSmall.csv")
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host='localhost', port=28015)
+conn = rdb.connect(host=Config.app.host, port=28015)
 
 
 

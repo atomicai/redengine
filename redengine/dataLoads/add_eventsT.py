@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Union
 import re
 import json
+from redengine.configuring import Config
 from datetime import datetime
 
 # data_dir = Path.home() / "Projects" / "redengine" / "redengine" / "dataLoads" / "dataSets/"
@@ -27,7 +28,7 @@ from datetime import datetime
 # print(arr[0].split(";"))
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host='localhost', port=28015)
+conn = rdb.connect(host=Config.app.host, port=28015)
 
 now = datetime.now()
 year_month = now.strftime("%Y_%m")

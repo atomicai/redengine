@@ -95,6 +95,15 @@ class IReDocStore(IDBDocStore):
          table_name = f"events_{year_month}"
          await rdb.db(self.db).table(table_name).insert(user_reaction).run(connection)
 
+    async def countPostsOfTime(self,user_id, start_time, end_time):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+          now = datetime.now()
+          year_month = now.strftime("%Y_%m")
+          table_name = f"events_{year_month}"
+
+          return await rdb.db(Config.db.database).table(table_name).filter((rdb.row['user_id'] == user_id) &(rdb.row['created_at'] >= start_time) &(rdb.row['created_at'] <= end_time)).count().run(connection)
+        
+
     async def cursorChat(self, user_id, chat_user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             return await rdb.db(Config.db.database).table('messages').filter(

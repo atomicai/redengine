@@ -10,7 +10,7 @@ from typing import List, Union
 import json
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host='localhost', port=28015)
+conn = rdb.connect(host=Config.app.host, port=28015)
 data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
 filename = Path("polaroids.ai.data.json")
 data_dir = Path(data_dir)
