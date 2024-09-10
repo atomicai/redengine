@@ -165,6 +165,38 @@ async def addUser(user):
         user = await RethinkDb.addUser(str(user_id),user.login,hashed_password,refresh_token)
         return {'access_token': access_token, 'refresh_token': refresh_token}
 
+async def randomWord(user_id):
+
+        user_events = await RethinkDb.userEvents(user_id)
+        post_ids = [event['post_id'] for event in user_events]
+
+        if not post_ids:
+            return jsonify({"message": "No posts found for the user in the last month."})
+
+        posts = await RethinkDb.keywordsByPostIds(post_ids)
+        
+        all_word_ids = set()
+        for post in posts:
+            all_word_ids.update(post.get('keywords', []))
+
+        if not all_word_ids:
+            return jsonify({"message": "No words found in the posts for the user."})
+
+        random_word_id = random.choice(list(all_word_ids))
+        word_doc = await r.table('keywords').get(random_word_id).run(connection)
+
+        if not word_doc:
+            return jsonify({"message": "Word not found in the database."}), 404
+
+        # Возвращаем слово и 3 объяснения
+        response = {
+            "word": word_doc['word'],
+            "explanations": word_doc['explanations']
+        }
+
+        return jsonify(response)
+
+
 async def addTgUser(data):
         existing = await RethinkDb.personByTgUserId(data["tg_user_id"])
         if not existing:
@@ -339,8 +371,9 @@ async def predict_posts1(user_id, data):
         
 async def predict_posts(user_id, data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
-        random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection) 
-
+        random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection)
+        for prev_post in data["previous_posts"]:
+              await addUserReaction(user_id,{"post_id": prev_post["post_id"],"reaction":prev_post["reaction"]})
         posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(random_posts).contains(post['id'])).run(connection)
         result = []
         async for post in posts:
@@ -376,7 +409,7 @@ async def predict_posts(user_id, data):
                 post_keywords.append(word)
 
             post = {'id': post['id'],
-            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"translation":post["translation"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
             result.append(post)
         return jsonify(result[0:data["top"]])
 

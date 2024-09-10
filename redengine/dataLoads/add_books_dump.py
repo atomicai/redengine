@@ -3,8 +3,6 @@ from pathlib import Path
 
 import rethinkdb as r
 import uuid
-import ast
-from redengine.configuring import Config
 from pathlib import Path
 from typing import List, Union
 
@@ -27,7 +25,7 @@ import json
 # print(arr[0].split(";"))
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host=Config.app.host, port=28015)
+conn = rdb.connect(host='localhost', port=28015)
 
 
 if not rdb.db_list().contains('meetingsDb').run(conn):
@@ -46,10 +44,7 @@ with open(data_dir / filename) as json_file:
         if "title" not in p:
             p["title"]=None
         repeat = rdb.db('meetingsDb').table('books').filter({'label':p["title"]}).nth(0).default(None).run(conn)
-        if not rdb.db('meetingsDb').table_list().contains(f'events_{p["title"]}').run(conn):
-            rdb.db('meetingsDb').table_create(f'events_{p["title"]}').run(conn)
         if not repeat:
-
             id = uuid.uuid4()
             if "type" in p and p["type"]=='book':
                 rdb.db('meetingsDb').table('books').insert({'label': p["title"]}).run(conn)

@@ -11,7 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -228,6 +228,106 @@ async def get_media(filename):
         return await send_file(filename)
     except FileNotFoundError:
         return jsonify({"message": "File not found"}), 404
+    
+@app.route('/quiz-word', methods=['GET'])
+@authorized
+async def get_random_word(user_id):
+    return await randomWord(user_id)
+    try:
+        # Шаг 1: Получаем текущий месяц и год
+        current_month = datetime.utcnow().strftime("%m")
+        current_year = datetime.utcnow().strftime("%Y")
+        events_table_name = f"events_{current_year}_{current_month}"
+
+        # Шаг 2: Получаем все просмотренные посты пользователя за последний месяц
+        user_events = await r.table(events_table_name).filter({'user_id': user_id}).pluck('post_id').run(connection)
+        post_ids = [event['post_id'] for event in user_events]
+
+        if not post_ids:
+            return jsonify({"message": "No posts found for the user in the last month."})
+
+        # Шаг 3: Получаем keyphrases и keywords из таблицы posts
+        posts = await r.table('posts').get_all(*post_ids).pluck('keyphrases', 'keywords').run(connection)
+        
+        all_word_ids = set()
+        for post in posts:
+            all_word_ids.update(post.get('keyphrases', []))
+            all_word_ids.update(post.get('keywords', []))
+
+        if not all_word_ids:
+            return jsonify({"message": "No words found in the posts for the user."})
+
+        # Шаг 4: Получаем случайные слова из таблицы keywords
+        random_word_id = random.choice(list(all_word_ids))
+        word_doc = await r.table('keywords').get(random_word_id).run(connection)
+
+        if not word_doc:
+            return jsonify({"message": "Word not found in the database."}), 404
+
+        # Возвращаем слово и 3 объяснения
+        response = {
+            "word": word_doc['word'],
+            "explanations": word_doc['explanations']
+        }
+
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+# @app.route('/check-answer', methods=['POST'])
+# async def check_answer():
+#     try:
+#         # Получаем данные от пользователя
+#         data = await request.get_json()
+#         user_word = data.get('word')
+#         user_answer = data.get('answer')
+#         user_id = data.get('user_id')
+
+#         # Проверяем данные
+#         if not user_word or not user_answer or not user_id:
+#             return jsonify({"message": "Word, answer, and user ID are required."}), 400
+
+#         # Шаг 5: Найти слово в таблице keywords
+#         word_doc = await r.table('keywords').filter({'word': user_word}).run(connection)
+#         word = await word_doc.next()
+
+#         if not word:
+#             return jsonify({"message": "Word not found in the database."}), 404
+
+#         # Проверка ответа пользователя
+#         correct_answer = word['correct_answer']
+#         if user_answer.lower() == correct_answer.lower():
+#             # Увеличиваем баллы и уровни
+#             await update_user_score(user_id, 1)  # Добавляем 1 балл
+#             return jsonify({"message": "Correct!", "points": 1, "level": await get_user_level(user_id)})
+#         else:
+#             # Возвращаем правильный ответ и перевод, если не угадали
+#             response = {
+#                 "message": "Incorrect.",
+#                 "correct_answer": correct_answer,
+#                 "translation": word['translation']}
+#             return jsonify(response)
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+
+# async def update_user_score(user_id, points):
+#     # Обновление баллов пользователя в базе данных
+#     await r.table('users').get(user_id).update({"score": r.row["score"] + points}).run(connection)
+
+
+# async def get_user_level(user_id):
+#     # Получение текущего уровня пользователя
+#     user = await r.table('users').get(user_id).run(connection)
+#     score = user.get('score', 0)
+
+#     # Определение уровня на основе баллов
+#     if score < 10:
+#         return "Beginner"
+#     elif score < 20:
+#         return "Intermediate"
+#     else:
+#         return "Advanced"
     
 @app.route('/add-favorite', methods=['POST'])
 @authorized

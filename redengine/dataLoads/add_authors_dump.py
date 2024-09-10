@@ -6,11 +6,10 @@ import uuid
 import ast
 from pathlib import Path
 from typing import List, Union
-from redengine.configuring import Config
 import json
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host=Config.app.host, port=28015)
+conn = rdb.connect(host='localhost', port=28015)
 
 
 if not rdb.db_list().contains('meetingsDb').run(conn):

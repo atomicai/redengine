@@ -1,12 +1,9 @@
 import ast
-from pathlib import Path
 
 import rethinkdb as r
 import uuid
-import ast
 from pathlib import Path
 from typing import List, Union
-from redengine.configuring import Config
 import json
 
 # data_dir = Path.home() / "Projects" / "redengine" / "redengine" / "dataLoads" / "dataSets/"
@@ -26,7 +23,7 @@ import json
 # print(arr[0].split(";"))
 
 rdb = r.RethinkDB()
-conn = rdb.connect(host=Config.app.host, port=28015)
+conn = rdb.connect(host='localhost', port=28015)
 
 
 if not rdb.db_list().contains('meetingsDb').run(conn):
@@ -37,7 +34,7 @@ if not rdb.db('meetingsDb').table_list().contains('movie_speakers').run(conn):
 
 
 data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
-filename = Path("polaroids.ai.data_test.json")
+filename = Path("polaroids.ai.data_fresh.json")
 data_dir = Path(data_dir)
 with open(data_dir / filename) as json_file:
     data = json.load(json_file)

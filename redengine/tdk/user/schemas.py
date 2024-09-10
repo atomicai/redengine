@@ -30,8 +30,13 @@ class RegisterFormTelegram:
     tg_user_id: int
 
 @dataclass
+class PreviousPost:
+    post_id: str
+    reaction: str
+
+@dataclass
 class Posts:
-    previous_ids: Optional[List[str]]
+    previous_posts: Optional[List[PreviousPost]]
     top: int
 
 @dataclass

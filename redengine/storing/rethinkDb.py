@@ -123,6 +123,22 @@ class IReDocStore(IDBDocStore):
     async def personById(self, user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
           return await rdb.db(Config.db.database).table('users').get(user_id).run(connection)  
+        
+    async def userEvents(self, user_id):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+          now = datetime.now()
+          year_month = now.strftime("%Y_%m")
+          events_table_name = f"events_{year_month}"
+          return await rdb.db(Config.db.database).table(events_table_name).filter({'user_id': user_id}).pluck('post_id').run(connection)
+        
+    async def keyword(self, keyword_id):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+
+          return await rdb.db(Config.db.database).table(events_table_name).filter({'user_id': user_id}).pluck('post_id').run(connection)
+
+    async def keywordsByPostIds(self, post_ids):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+          return await rdb.db(Config.db.database).table('posts').get_all(*post_ids).pluck('keywords').run(connection)
 
     async def personByLogin(self, nickname):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
