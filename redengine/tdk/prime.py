@@ -327,6 +327,32 @@ async def refresh_user_token(data):
             return {'message': 'Refresh token expired'}, 401
         except jwt.InvalidTokenError:
             return {'message': 'Invalid token'}, 401
+async def addFileServer(request):
+
+    data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
+    data_dir = Path(data_dir)
+  
+    files = await request.files
+  
+    # Проверка, что файл присутствует в запросе
+    if 'file' not in files:
+        return jsonify({"error": "No file part in the request"}), 400
+
+    file = files['file']
+
+    # Проверка, что файл выбран
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    # Проверка, что это JSON файл
+    if not file.filename.endswith('.json'):
+        return jsonify({"error": "File is not a JSON file"}), 400
+ 
+    # Сохранение файла
+    file_path = os.path.join(data_dir, file.filename)
+    await file.save(file_path)
+
+    return jsonify({"message": "File uploaded successfully", "file_path": file_path}), 200 
 
 async def predict_post_tg(tg_user_id):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
