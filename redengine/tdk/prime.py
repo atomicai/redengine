@@ -137,6 +137,17 @@ async def messages(request,user_id):
 
     return jsonify(messages)
 
+async def removeFavorite(user_id,data):
+        # Получаем данные из запроса
+    data = await request.get_json()
+    post_id = data.get('post_id')
+    result = await RethinkDb.removeFavorite(user_id, post_id)
+    
+    if result['deleted'] > 0:
+        return jsonify({"message": "Post removed from favorites"}), 200
+    else:
+        return jsonify({"message": "No matching favorite post found"}), 404
+    
 async def start_messaging(request, user_id):
         if request.method == 'POST':
             return await render_template('index.html')
@@ -408,9 +419,18 @@ async def predict_posts(user_id, data):
             keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
             
             keyphrases = await rdb.db(Config.db.database).table('keyphrases').filter(lambda keyphrase: rdb.expr(post_info['keyphrases_ids']).contains(keyphrase['id'])).run(connection)
-            
+                    
             post_keyphrases = []
             async for phrase in keyphrases:
+
+                start_index = post_info["translation"].find(phrase["phrase"])
+                while start_index != -1:
+                    end_index = start_index + len(phrase["phrase"])  
+
+                    phrase["start_index"] = start_index
+                    phrase["end_index"] = end_index
+                    start_index = post_info["translation"].find(phrase["phrase"], start_index + 1)
+
                 post_keyphrases.append(phrase)
             post_keywords = []
             async for word in keywords:
@@ -429,10 +449,28 @@ async def predict_posts(user_id, data):
             
             post_keyphrases = []
             async for phrase in keyphrases:
+                start_index = (post_info["translation"]).find(phrase["phrase"])
+                while start_index != -1:
+                    end_index = start_index + len(phrase["phrase"])
+                    phrase["start_index"] = start_index
+                    phrase["end_index"] = end_index
+                    start_index = post_info["translation"].find(phrase["phrase"], start_index + 1)
+
+
                 post_keyphrases.append(phrase)
             post_keywords = []
-            async for word in keywords:
-                post_keywords.append(word)
+
+            async for keyword in keywords:
+                start_index = post_info["translation"].find(keyword["word"])
+        # Ищем все вхождения ключевого слова
+                while start_index != -1:
+                    end_index = start_index + len(keyword["word"])  
+
+                    keyword["start_index"] = start_index
+                    keyword["end_index"] = end_index
+                    start_index = post_info["translation"].find(keyword["word"], start_index + 1)
+
+                    post_keywords.append(keyword)
 
             post = {'id': post['id'],
             'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"translation":post["translation"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 

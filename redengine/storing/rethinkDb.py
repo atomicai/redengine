@@ -65,6 +65,15 @@ class IReDocStore(IDBDocStore):
             return await rdb.db(self.db).table('users').filter({'tg_user_id': tg_user_id}).nth(0).default(None).run(
             connection)
 
+    async def removeFavorite(self, user_id, post_id):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+        
+            result = await rdb.db(Config.db.database).table('favorites_posts').filter(
+            (rdb.row['user_id'] == user_id) & (rdb.row['post_id'] == post_id)
+        ).delete().run(connection)
+
+            return result
+
     async def telegramRegistration(self, tg_user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').insert(

@@ -11,7 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, get_all_users, predict_post_tg, delete_account, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, removeFavorite, get_all_users, predict_post_tg, delete_account, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -238,46 +238,7 @@ async def upload_file():
 @authorized
 async def get_random_word(user_id):
     return await randomWord(user_id)
-    try:
-        # Шаг 1: Получаем текущий месяц и год
-        current_month = datetime.utcnow().strftime("%m")
-        current_year = datetime.utcnow().strftime("%Y")
-        events_table_name = f"events_{current_year}_{current_month}"
 
-        # Шаг 2: Получаем все просмотренные посты пользователя за последний месяц
-        user_events = await r.table(events_table_name).filter({'user_id': user_id}).pluck('post_id').run(connection)
-        post_ids = [event['post_id'] for event in user_events]
-
-        if not post_ids:
-            return jsonify({"message": "No posts found for the user in the last month."})
-
-        # Шаг 3: Получаем keyphrases и keywords из таблицы posts
-        posts = await r.table('posts').get_all(*post_ids).pluck('keyphrases', 'keywords').run(connection)
-        
-        all_word_ids = set()
-        for post in posts:
-            all_word_ids.update(post.get('keyphrases', []))
-            all_word_ids.update(post.get('keywords', []))
-
-        if not all_word_ids:
-            return jsonify({"message": "No words found in the posts for the user."})
-
-        # Шаг 4: Получаем случайные слова из таблицы keywords
-        random_word_id = random.choice(list(all_word_ids))
-        word_doc = await r.table('keywords').get(random_word_id).run(connection)
-
-        if not word_doc:
-            return jsonify({"message": "Word not found in the database."}), 404
-
-        # Возвращаем слово и 3 объяснения
-        response = {
-            "word": word_doc['word'],
-            "explanations": word_doc['explanations']
-        }
-
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
     
 # @app.route('/check-answer', methods=['POST'])
 # async def check_answer():
@@ -346,6 +307,10 @@ async def add_favorite(user_id,data: Favorites):
 async def show_favorites(user_id):
     return await showFavorites(user_id)
 
+@app.route('/remove_favorite', methods=['POST'])
+@validate_request(Favorites)
+async def remove_favorite(user_id,data: Favorites):
+    return removeFavorite(data)
 
 if __name__ == "__main__":
     app.run(host=Config.app.host, port=8000, debug=True)
