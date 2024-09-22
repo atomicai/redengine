@@ -11,7 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, removeFavorite, get_all_users,addReaction, predict_post_tg, delete_account, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, removeFavorite, get_all_users,addReaction, predict_post_tg, delete_account,listReaction, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -238,6 +238,11 @@ async def get_random_word(user_id):
 async def add_reaction(user_id,data: UserReaction):
     data = asdict(data)
     return await addReaction(user_id, data)
+
+@app.route("/list-reaction", methods=["GET"])
+@authorized
+async def list_reaction(user_id):
+    return await listReaction(user_id)
   
 # @app.route('/check-answer', methods=['POST'])
 # async def check_answer():

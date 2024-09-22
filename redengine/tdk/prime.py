@@ -383,6 +383,14 @@ async def predict_post_tg(tg_user_id):
     return {'id': posts_info['id'], "author_name": author_name['name'], "book_name": book_name['label'],
             'post': posts_info['context'], "score": 20, "media_path": posts_info['img_path'], "media_type":"image"}
 
+async def listReaction(user_id):
+    async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
+        result = []
+        reactions = await rdb.db('meetingsDb').table('emojis').filter({"active":True}).run(connection)
+        async for reaction in reactions:
+            result.append(reaction)
+        return jsonify(result)
+
 async def predict_posts1(user_id, data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
         random_posts = await rdb.db('meetingsDb').table('posts').sample(3).run(connection) 
