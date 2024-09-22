@@ -36,8 +36,9 @@ class PreviousPost:
 
 @dataclass
 class Posts:
-    previous_posts: Optional[List[PreviousPost]]
-    top: int
+    post_ids: Optional[List[str]] = None
+    previous_posts: Optional[List[PreviousPost]] = None
+    top: int = 1
 
 @dataclass
 class TgUserPhoto:
@@ -72,7 +73,7 @@ class TgUserReaction:
 
 @dataclass
 class UserReaction:
-    reaction: str
+    reaction_type: str
     post_id: str
 
 @dataclass

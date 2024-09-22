@@ -263,6 +263,10 @@ async def addTgUserReaction(data):
     await RethinkDb.sendReaction(userReaction)  
 
 async def addUserReaction(user_id, data):
+    await RethinkDb.sendReactionByUser(user_id,data)  
+    return 'ok' 
+
+async def addReaction(user_id, data):
     await RethinkDb.sendReaction(user_id,data)  
     return 'ok' 
 # data.tg_user_id, data.username, data.age, data.describe
@@ -408,12 +412,20 @@ async def predict_posts1(user_id, data):
         
 async def predict_posts(user_id, data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
-        random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection)
-        for prev_post in data["previous_posts"]:
-              await addUserReaction(user_id,{"post_id": prev_post["post_id"],"reaction":prev_post["reaction"]})
-        posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(random_posts).contains(post['id'])).run(connection)
+        posts = []
         result = []
+        if not "post_ids" in data:
+            random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection)
+            for prev_post in data["previous_posts"]:
+                await addUserReaction(user_id,{"post_id": prev_post["post_id"],"reaction":prev_post["reaction"]})
+            posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(random_posts).contains(post['id'])).run(connection)
+        else:
+            posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(data["post_ids"]).contains(post['id'])).run(connection)
+        
         async for post in posts:
+          
+          reaction_counts = await rdb.db('meetingsDb').table('post_reaction').filter({'post_id' : post["id"]}).group('reaction_type').count().run(connection)
+            
           if post['type'] == 'movie':
             post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('speaker_id', rdb.db(Config.db.database).table('movie_speakers')).zip().eq_join('movie_id', rdb.db(Config.db.database).table('movies')).zip().nth(0).default(None).run(connection)
             keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
@@ -437,7 +449,7 @@ async def predict_posts(user_id, data):
                 post_keywords.append(word)
 
             post = {'id': post['id'],
-            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            'text': post['context'], "score": 20,"reaction_counts":reaction_counts, "media_path": post['img_path'], "is_image": post["has_image"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
             result.append(post)
 
           elif post['type'] == 'book':
@@ -473,7 +485,8 @@ async def predict_posts(user_id, data):
                     post_keywords.append(keyword)
 
             post = {'id': post['id'],
-            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"translation":post["translation"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            'text': post['context'], "score": 20, "media_path": post['img_path'],"reaction_counts":reaction_counts, "is_image": post["has_image"],"translation":post["translation"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            
             result.append(post)
         return jsonify(result[0:data["top"]])
 
@@ -532,7 +545,6 @@ async def showFavorites(user_id):
             result.append(post)
     
     return jsonify(result)
-
 
     # async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
     #     book_ids = []

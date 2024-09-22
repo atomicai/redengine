@@ -95,7 +95,26 @@ class IReDocStore(IDBDocStore):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             await rdb.db(self.db).table('users').filter({'user_id': user_id}).update(user_info).run(connection)   
 
-    async def sendReaction(self,user_id, user_reaction):
+    async def sendReaction(self, user_id, user_reaction):
+        async with await rdb.connect(host = self.host, port = self.port) as connection:
+         
+            user_reaction['user_id'] = user_id
+            user_reaction['created_at'] = rdb.now()
+            print(user_reaction)
+        # Проверяем, существует ли уже реакция от этого пользователя на этот пост
+            existing_reaction = await rdb.db(self.db).table('post_reaction').filter((rdb.row['post_id'] == user_reaction["post_id"]) & (rdb.row['user_id'] == user_id)).nth(0).default(None).run(connection)
+            
+        # Если существует, обновляем ее, если нет, создаем новую
+            if existing_reaction:
+                await rdb.db(self.db).table('post_reaction').filter(
+                    (rdb.row['post_id'] == user_reaction["post_id"]) & (rdb.row['user_id'] == user_id)
+                ).update({'reaction_type': user_reaction["reaction_type"]}).run(connection)
+            else:
+                await rdb.db(self.db).table('post_reaction').insert(user_reaction).run(connection)
+
+      
+
+    async def sendReactionByUser(self,user_id, user_reaction):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
          now = datetime.now()
          user_reaction['user_id']= user_id

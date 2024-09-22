@@ -11,7 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, removeFavorite, get_all_users, predict_post_tg, delete_account, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, removeFavorite, get_all_users,addReaction, predict_post_tg, delete_account, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -142,13 +142,6 @@ async def addTelegramUserReaction(data: TgUserReaction):
     data = asdict(data)
     return await addTgUserReaction(data)
 
-@app.route("/add-reaction", methods=["POST"])
-@authorized
-@validate_request(UserReaction)
-async def addReaction(user_id,data: UserReaction):
-    data = asdict(data)
-    return await addUserReaction(user_id,data)
-
 @app.route('/upload-photo', methods=['POST'])
 @authorized
 async def upload_photo(user_id):
@@ -199,7 +192,7 @@ async def talk(user_id):
 @app.route('/messages', methods=['GET'])
 @authorized
 async def get_messages(user_id):
-    return await messages(request,user_id)
+    return await messages(request, user_id)
 
 @app.websocket('/ws')
 @authorized
@@ -239,7 +232,13 @@ async def upload_file():
 async def get_random_word(user_id):
     return await randomWord(user_id)
 
-    
+@app.route("/add-reaction", methods=["POST"])
+@authorized
+@validate_request(UserReaction)
+async def add_reaction(user_id,data: UserReaction):
+    data = asdict(data)
+    return await addReaction(user_id, data)
+  
 # @app.route('/check-answer', methods=['POST'])
 # async def check_answer():
 #     try:
