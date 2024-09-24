@@ -394,8 +394,6 @@ async def listReaction(user_id):
 async def predict_posts1(user_id, data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
         random_posts = await rdb.db('meetingsDb').table('posts').sample(3).run(connection) 
-        
-        
         result = []
         for post in random_posts:
             post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('speaker_id', rdb.db(Config.db.database).table('movie_speakers')).zip().eq_join('movie_id', rdb.db(Config.db.database).table('movies')).zip().nth(0).default(None).run(connection)
@@ -422,16 +420,19 @@ async def predict_posts(user_id, data):
     async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
         posts = []
         result = []
-        if not "post_ids" in data:
-            random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection)
-            for prev_post in data["previous_posts"]:
-                await addUserReaction(user_id,{"post_id": prev_post["post_id"],"reaction":prev_post["reaction"]})
-            posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(random_posts).contains(post['id'])).run(connection)
+        if not data["post_ids"]:
+            if data["previous_posts"]:
+                random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection)
+                for prev_post in data["previous_posts"]:
+                    await addUserReaction(user_id,{"post_id": prev_post["post_id"],"reaction":prev_post["reaction"]})
+                posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(random_posts).contains(post['id'])).run(connection)
+            else: 
+                random_posts = await rdb.db('meetingsDb').table('posts').sample(data['top']).pluck('id').map(lambda post: post['id']).run(connection)
+        
+                posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(random_posts).contains(post['id'])).run(connection)
         else:
             posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(data["post_ids"]).contains(post['id'])).run(connection)
-        
         async for post in posts:
-          
           reaction_counts = await rdb.db('meetingsDb').table('post_reaction').filter({'post_id' : post["id"]}).group('reaction_type').count().run(connection)
             
           if post['type'] == 'movie':
