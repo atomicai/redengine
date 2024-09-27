@@ -444,13 +444,13 @@ async def predict_posts(user_id, data):
             post_keyphrases = []
             async for phrase in keyphrases:
 
-                start_index = post_info["translation"].find(phrase["phrase"])
+                start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower())
                 while start_index != -1:
                     end_index = start_index + len(phrase["phrase"])  
 
                     phrase["start_index"] = start_index
                     phrase["end_index"] = end_index
-                    start_index = post_info["translation"].find(phrase["phrase"], start_index + 1)
+                    start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower(), start_index + 1)
 
                 post_keyphrases.append(phrase)
             post_keywords = []
@@ -470,26 +470,28 @@ async def predict_posts(user_id, data):
             
             post_keyphrases = []
             async for phrase in keyphrases:
-                start_index = (post_info["translation"]).find(phrase["phrase"])
+                start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower())
                 while start_index != -1:
-                    end_index = start_index + len(phrase["phrase"])
+                    end_index = start_index + len(phrase["phrase"])  
+
                     phrase["start_index"] = start_index
                     phrase["end_index"] = end_index
-                    start_index = post_info["translation"].find(phrase["phrase"], start_index + 1)
+                    start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower(), start_index + 1)
 
 
+                print(phrase)
                 post_keyphrases.append(phrase)
             post_keywords = []
 
             async for keyword in keywords:
-                start_index = post_info["translation"].find(keyword["word"])
+                start_index = (post_info["translation"].lower()).find(keyword["word"].lower())
         # Ищем все вхождения ключевого слова
                 while start_index != -1:
-                    end_index = start_index + len(keyword["word"])  
+                    end_index = start_index + len(keyword["word"].lower())  
 
                     keyword["start_index"] = start_index
                     keyword["end_index"] = end_index
-                    start_index = post_info["translation"].find(keyword["word"], start_index + 1)
+                    start_index = (post_info["translation"].lower()).find(keyword["word"].lower(), start_index + 1)
 
                     post_keywords.append(keyword)
 
@@ -498,6 +500,46 @@ async def predict_posts(user_id, data):
             
             result.append(post)
         return jsonify(result[0:data["top"]])
+
+async def topPosts(user_id, start_time, end_time, limit):
+    async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
+ 
+         now = datetime.now()
+         year_month = now.strftime("%Y_%m")
+         table_name = f"events_{year_month}"
+        # Получаем параметр limit из запроса
+
+        # Шаг 1: Получить посты с реакцией 'favorite' и подсчитать количество реакций для каждого поста
+        favorite_reactions = await rdb.db('meetingsDb').table(table_name) \
+            .filter({'reaction': 'like'}) \
+            .group('post_id') \
+            .count() \
+            .order_by(r.desc('reduction')) \
+            .run(connection)
+
+    
+
+        # Шаг 2: Получить посты по post_id из таблицы 'posts'
+        favorite_post_ids = [item['group'] for item in favorite_reactions[:limit]]
+        favorite_posts = await r.table('posts').get_all(*favorite_post_ids).run(connection)
+        favorite_posts = await favorite_posts.to_list()
+
+        # Шаг 3: Создание результата с количеством реакций
+        result = []
+        for post in favorite_posts:
+            # Найти количество реакций для текущего поста
+            post_id = post['id']
+            reactions_count = next((item['reduction'] for item in favorite_reactions if item['group'] == post_id), 0)
+            result.append({
+                'post': post,
+                'favorite_count': reactions_count
+            })
+
+        # Сортируем по количеству реакций
+        result.sort(key=lambda x: x['favorite_count'], reverse=True)
+
+        # Ограничиваем результат до количества постов, указанного в limit
+        return jsonify(result[:limit])
 
 
 async def addFavorite(user_id, data):
@@ -518,21 +560,33 @@ async def showFavorites(user_id):
         posts = await rdb.db(Config.db.database).table('posts').filter(lambda post: rdb.expr(post_ids).contains(post['id'])).run(connection)
         result = []
         async for post in posts:
+
+          reaction_counts = await rdb.db('meetingsDb').table('post_reaction').filter({'post_id' : post["id"]}).group('reaction_type').count().run(connection)
+            
           if post['type'] == 'movie':
             post_info = await rdb.db('meetingsDb').table('posts').filter({"id":post['id']}).eq_join('speaker_id', rdb.db(Config.db.database).table('movie_speakers')).zip().eq_join('movie_id', rdb.db(Config.db.database).table('movies')).zip().nth(0).default(None).run(connection)
             keywords = await rdb.db(Config.db.database).table('keywords').filter(lambda keyword: rdb.expr(post_info['keywords_ids']).contains(keyword['id'])).run(connection)
             
             keyphrases = await rdb.db(Config.db.database).table('keyphrases').filter(lambda keyphrase: rdb.expr(post_info['keyphrases_ids']).contains(keyphrase['id'])).run(connection)
-            
+                    
             post_keyphrases = []
             async for phrase in keyphrases:
+
+                start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower())
+                while start_index != -1:
+                    end_index = start_index + len(phrase["phrase"])  
+
+                    phrase["start_index"] = start_index
+                    phrase["end_index"] = end_index
+                    start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower(), start_index + 1)
+
                 post_keyphrases.append(phrase)
             post_keywords = []
             async for word in keywords:
                 post_keywords.append(word)
 
             post = {'id': post['id'],
-            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            'text': post['context'], "score": 20,"reaction_counts":reaction_counts, "media_path": post['img_path'], "is_image": post["has_image"],"speaker_name": post_info["name_speaker"],"movie":post_info['title'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
             result.append(post)
 
           elif post['type'] == 'book':
@@ -544,16 +598,36 @@ async def showFavorites(user_id):
             
             post_keyphrases = []
             async for phrase in keyphrases:
+                start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower())
+                while start_index != -1:
+                    end_index = start_index + len(phrase["phrase"])  
+
+                    phrase["start_index"] = start_index
+                    phrase["end_index"] = end_index
+                    start_index = (post_info["translation"].lower()).find(phrase["phrase"].lower(), start_index + 1)
+
+
+                print(phrase)
                 post_keyphrases.append(phrase)
             post_keywords = []
-            async for word in keywords:
-                post_keywords.append(word)
+
+            async for keyword in keywords:
+                start_index = (post_info["translation"].lower()).find(keyword["word"].lower())
+        # Ищем все вхождения ключевого слова
+                while start_index != -1:
+                    end_index = start_index + len(keyword["word"].lower())  
+
+                    keyword["start_index"] = start_index
+                    keyword["end_index"] = end_index
+                    start_index = (post_info["translation"].lower()).find(keyword["word"].lower(), start_index + 1)
+
+                    post_keywords.append(keyword)
 
             post = {'id': post['id'],
-            'text': post['context'], "score": 20, "media_path": post['img_path'], "is_image": post["has_image"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            'text': post['context'], "score": 20, "media_path": post['img_path'],"reaction_counts":reaction_counts, "is_image": post["has_image"],"translation":post["translation"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
+            
             result.append(post)
-    
-    return jsonify(result)
+        return jsonify(result)
 
     # async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
     #     book_ids = []

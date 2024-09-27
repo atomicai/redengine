@@ -11,7 +11,7 @@ import jwt
 from passlib.context import CryptContext
 from quart import Quart, redirect, url_for, request, jsonify, g, send_file
 from quart_schema import QuartSchema, validate_request, validate_response
-from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, removeFavorite, get_all_users,addReaction, predict_post_tg, delete_account,listReaction, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
+from redengine.tdk.prime import verify_token, loginUser, refresh_user_token, removeFavorite, topPosts, get_all_users,addReaction, predict_post_tg, delete_account,listReaction, addFileServer, generate_tokens, randomWord, authorize_user, start_messaging, select_user, chat, websocket, messages, addTgUser, addTelegramUserPhoto, addTgUserInfo, addTgUserReaction, generateName,addUser, predict_posts, addFavorite, addUserReaction, showFavorites, addUserInfo, addUserPhoto,postsOfTime
 from requests_oauthlib import OAuth2Session
 import asyncio
 import os
@@ -310,6 +310,11 @@ async def add_favorite(user_id,data: Favorites):
 @authorized
 async def show_favorites(user_id):
     return await showFavorites(user_id)
+
+@app.route('/top-posts/<int:top>', methods=['GET'])
+@authorized
+async def top_posts(user_id,top):
+    return await topPosts(user_id,top)
 
 @app.route('/remove_favorite', methods=['POST'])
 @validate_request(Favorites)
