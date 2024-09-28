@@ -311,7 +311,7 @@ async def add_favorite(user_id,data: Favorites):
 async def show_favorites(user_id):
     return await showFavorites(user_id)
 
-@app.route('/top-posts/', methods=['GET'])
+@app.route('/top-posts', methods=['GET'])
 @authorized
 async def top_posts(user_id):
     limit = request.args.get('limit', default=10, type=int)

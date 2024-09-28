@@ -474,10 +474,10 @@ async def posts(user_id, data):
             'text': post['context'], "score": 20, "media_path": post['img_path'],"reaction_counts":reaction_counts, "is_image": post["has_image"],"translation":post["translation"],"author_name": post_info['name'], "book_name": post_info['label'],'type':post_info['type'],"keyphrases": post_keyphrases,"keywords": post_keywords } 
             
             result.append(post)
-            if "top" in data:
-                return jsonify(result[0:data["top"]])
-            else: 
-              return jsonify(result)
+        if "top" in data:
+            return jsonify(result[0:data["top"]])
+        else: 
+            return jsonify(result)
 
 async def predict_posts(user_id, data):
     return await posts(user_id, data)
@@ -491,9 +491,8 @@ async def topPosts(user_id, start_time, end_time, limit):
         # Получаем параметр limit из запроса
    
         # Шаг 1: Получить посты с реакцией 'favorite' и подсчитать количество реакций для каждого поста
-        favorite_reactions = favorite_reactions = await rdb.db('meetingsDb').table(table_name).filter((rdb.row['user_id'] == user_id) &(rdb.row['created_at'] >= start_time) &(rdb.row['created_at'] <= end_time)& ((rdb.row['reaction'] =='like')|(rdb.row['reaction'] =='super'))).group('post_id').count().order_by(rdb.desc('reduction')).limit(limit).run(connection)
+        favorite_reactions = favorite_reactions = await rdb.db('meetingsDb').table(table_name).filter((rdb.row['user_id'] == user_id) &(rdb.row['created_at'] >= start_time) &(rdb.row['created_at'] <= end_time)& ((rdb.row['reaction'] =='like')|(rdb.row['reaction'] =='super'))).group('post_id').count().order_by(rdb.desc('reduction')).run(connection)
 
-    
         print(favorite_reactions)
         # Шаг 2: Получить посты по post_id из таблицы 'posts'
         favorite_post_ids = [item['group'] for item in favorite_reactions[:limit]]
@@ -535,20 +534,3 @@ async def showFavorites(user_id):
         return await posts(user_id, {
             "post_ids": post_ids
         })
-
-    # async with await rdb.connect(host=Config.db.host, port=Config.db.port) as connection:
-    #     book_ids = []
-    #     posts = []
-    #     books_info = rdb.db('meetingsBook').table('books').pluck("id").run(connection)
-    #     for book_id in books_info:
-    #         book_ids.append(book_id["id"])
-    #     random_book_id = random.choice(book_ids)
-    #     posts_info = list(rdb.db('meetingsBook').table('posts').filter({'book_id': random_book_id}).run(connection))
-    #     for post in posts_info:
-    #         posts.append(post)
-    #     random_post = random.choice(posts)
-    #     [author_name] = list(
-    #         rdb.db('meetingsBook').table('authors').filter({'id': random_post['author_id']}).run(connection))
-    #     [book_name] = list(rdb.db('meetingsBook').table('books').filter({'id': random_post['book_id']}).run(connection))
-    # return {'id': random_post['id'], "author_name": author_name['name'], "book_name": book_name['label'],
-    #         'post': random_post['context'], "score": 20}
