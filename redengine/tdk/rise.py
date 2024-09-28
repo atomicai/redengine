@@ -311,10 +311,14 @@ async def add_favorite(user_id,data: Favorites):
 async def show_favorites(user_id):
     return await showFavorites(user_id)
 
-@app.route('/top-posts/<int:top>', methods=['GET'])
+@app.route('/top-posts/', methods=['GET'])
 @authorized
-async def top_posts(user_id,top):
-    return await topPosts(user_id,top)
+async def top_posts(user_id):
+    limit = request.args.get('limit', default=10, type=int)
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    return await topPosts(user_id, start_time, end_time, limit)
+
 
 @app.route('/remove_favorite', methods=['POST'])
 @validate_request(Favorites)
