@@ -33,14 +33,14 @@ conn = rdb.connect(host=Config.app.host, port=28015)
 now = datetime.now()
 year_month = now.strftime("%Y_%m")
 table_name = f"events_{year_month}"
-if not rdb.db_list().contains('meetingsDb').run(conn):
-    rdb.db_create('meetingsDb').run(conn)
+if not rdb.db_list().contains("meetingsDb").run(conn):
+    rdb.db_create("meetingsDb").run(conn)
 
-if not rdb.db('meetingsDb').table_list().contains(table_name).run(conn):
-    rdb.db('meetingsDb').table_create(table_name).run(conn)
+if not rdb.db("meetingsDb").table_list().contains(table_name).run(conn):
+    rdb.db("meetingsDb").table_create(table_name).run(conn)
 
 
-# data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
+# data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/"
 # filename = Path("polaroids.ai.data_test.json")
 # data_dir = Path(data_dir)
 # with open(data_dir / filename) as json_file:
@@ -59,4 +59,3 @@ if not rdb.db('meetingsDb').table_list().contains(table_name).run(conn):
 #             id = uuid.uuid4()
 #             if "type" in p and p["type"]=='movie':
 #                 rdb.db('meetingsDb').table('movies').insert({'title': p["title"]}).run(conn)
-

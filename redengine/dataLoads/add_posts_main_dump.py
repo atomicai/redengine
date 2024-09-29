@@ -11,17 +11,18 @@ import json
 
 rdb = r.RethinkDB()
 conn = rdb.connect(host=Config.app.host, port=28015)
-data_dir = Path.home() / "projects" / "redengine"/"redengine"/"dataLoads"/"dataSets/" 
+data_dir = (
+    Path.home() / "projects" / "redengine" / "redengine" / "dataLoads" / "dataSets/"
+)
 filename = Path("polaroids.ai.data.json")
 data_dir = Path(data_dir)
 with open(data_dir / filename) as json_file:
     data = json.load(json_file)
-    k=0
+    k = 0
     for p in data["posts"]:
-        k=k+1
+        k = k + 1
         print(k)
-        print(p['author'])
-
+        print(p["author"])
 
 
 # if not rdb.db_list().contains('meetingsBook').run(conn):

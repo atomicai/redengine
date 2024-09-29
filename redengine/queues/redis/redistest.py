@@ -2,8 +2,10 @@ import asyncio
 import async_timeout
 import aioredis
 import datetime
+
 STOPWORD = "STOP"
 red = aioredis.from_url("redis://localhost")
+
 
 async def reader2(channel: aioredis.client.PubSub):
     while True:
@@ -13,11 +15,11 @@ async def reader2(channel: aioredis.client.PubSub):
                 message = await channel.get_message(ignore_subscribe_messages=True)
                 print(f"(Reader) Message Received: {message}")
                 if message is not None:
-                    feed = r.table('users').changes().run(conn)
+                    feed = r.table("users").changes().run(conn)
                     for change in feed:
                         print(change)
 
-                    await red.publish("channel:2", '444444444444444444444')
+                    await red.publish("channel:2", "444444444444444444444")
                     await red.publish("channel:2", STOPWORD)
                     print(f"(Reader) Message Received: {message}")
                     if message["data"].decode() == STOPWORD:
@@ -28,38 +30,31 @@ async def reader2(channel: aioredis.client.PubSub):
             pass
 
 
-
 async def pubPost():
     red = aioredis.from_url("redis://localhost")
     pubsub = red.pubsub()
 
     await pubsub.psubscribe("channel:*")
-    print('3242342342342424234234==============')
+    print("3242342342342424234234==============")
     future = asyncio.create_task(reader2(pubsub))
 
-
     await future
-
 
 
 async def main():
     tasks = []
     start = datetime.datetime.now()
-    print('Время старта: ' + str(start))
-    k=0
+    print("Время старта: " + str(start))
+    k = 0
 
     task = pubPost()
     tasks.append(task)
     finish = datetime.datetime.now()
 
-
-
     # вычитаем время старта из времени окончания
-    print('Время работы: ' + str(finish - start))
+    print("Время работы: " + str(finish - start))
     # планируем одновременные вызовы
     await asyncio.gather(*tasks)
-
-
 
 
 if __name__ == "__main__":

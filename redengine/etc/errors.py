@@ -76,7 +76,9 @@ class PipelineConfigError(PipelineError):
 class DocumentStoreError(IError):
     """Exception for issues that occur in a document store"""
 
-    def __init__(self, message: Optional[str] = None, send_message_in_event: bool = False):
+    def __init__(
+        self, message: Optional[str] = None, send_message_in_event: bool = False
+    ):
         super().__init__(message=message, send_message_in_event=send_message_in_event)
 
 
@@ -101,4 +103,9 @@ class DeserializationError(IError):
         super().__init__(message=message)
 
 
-__all__ = ["FilterError", "DuplicateDocumentError", "DocumentStoreError", "ModelingError"]
+__all__ = [
+    "FilterError",
+    "DuplicateDocumentError",
+    "DocumentStoreError",
+    "ModelingError",
+]

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
 
+
 @dataclass
 class User:
     id: str
@@ -19,20 +20,24 @@ class RegisterForm:
 
 @dataclass
 class userIdChat:
-    user_id: str 
+    user_id: str
+
 
 @dataclass
 class Token:
     refresh_token: str
 
+
 @dataclass
 class RegisterFormTelegram:
     tg_user_id: int
+
 
 @dataclass
 class PreviousPost:
     post_id: str
     reaction: str
+
 
 @dataclass
 class Posts:
@@ -40,11 +45,13 @@ class Posts:
     previous_posts: Optional[List[PreviousPost]] = None
     top: int = 1
 
+
 @dataclass
 class TgUserPhoto:
     tg_user_id: int
     photo_ids: Optional[List[str]] = None
     photo_path: Optional[List[str]] = None
+
 
 @dataclass
 class TgUserInfo:
@@ -53,16 +60,19 @@ class TgUserInfo:
     age: int
     describe: str
 
+
 @dataclass
 class UserPhoto:
     photo_ids: Optional[List[str]] = None
     photo_path: Optional[List[str]] = None
+
 
 @dataclass
 class UserInfo:
     username: str
     age: int
     describe: str
+
 
 @dataclass
 class TgUserReaction:
@@ -71,14 +81,17 @@ class TgUserReaction:
     post_id: str
     book_name: str
 
+
 @dataclass
 class UserReaction:
     reaction_type: str
     post_id: str
 
+
 @dataclass
 class GenerationLogin:
     nickname: str
+
 
 @dataclass
 class Favorites:
