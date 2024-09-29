@@ -504,6 +504,19 @@ async def listReaction(user_id):
         return jsonify(result)
 
 
+async def isFavorite(postId):
+    async with await rdb.connect(
+        host=Config.db.host, port=Config.db.port
+    ) as connection:
+        favorite = (
+            await rdb.db("meetingsDb")
+            .table("favorites_posts")
+            .filter({"post_id": postId})
+            .run(connection)
+        )
+        return await favorite.fetch_next()
+
+
 async def posts(user_id, data):
     async with await rdb.connect(
         host=Config.db.host, port=Config.db.port
@@ -636,6 +649,7 @@ async def posts(user_id, data):
                     "type": post_info["type"],
                     "keyphrases": post_keyphrases,
                     "keywords": post_keywords,
+                    "is_favorite": await isFavorite(post["id"]),
                 }
                 result.append(post)
 
@@ -721,6 +735,7 @@ async def posts(user_id, data):
                     "type": post_info["type"],
                     "keyphrases": post_keyphrases,
                     "keywords": post_keywords,
+                    "is_favorite": await isFavorite(post["id"]),
                 }
 
                 result.append(post)
