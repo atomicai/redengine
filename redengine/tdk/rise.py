@@ -47,6 +47,7 @@ from redengine.tdk.prime import (
     messages,
     addTgUser,
     addTelegramUserPhoto,
+    removeReaction,
     addTgUserInfo,
     addTgUserReaction,
     generateName,
@@ -405,10 +406,16 @@ async def top_posts(user_id):
     return await topPosts(user_id, start_time, end_time, limit)
 
 
-@app.route("/remove_favorite", methods=["POST"])
-@validate_request(Favorites)
-async def remove_favorite(user_id, data: Favorites):
-    return removeFavorite(data)
+@app.route("/remove-favorite/<string:post_id>", methods=["DELETE"])
+@authorized
+async def remove_favorite(user_id,post_id):
+    return  await removeFavorite(user_id, post_id)
+
+@app.route("/remove-reaction/<string:post_id>/<string:reaction_type>", methods=["DELETE"])
+@authorized
+async def remove_reaction(user_id, post_id, reaction_type):
+    return await removeReaction(user_id, post_id, reaction_type)
+
 
 
 if __name__ == "__main__":

@@ -125,6 +125,21 @@ class IReDocStore(IDBDocStore):
             )
 
             return result
+        
+    async def removeReaction(self, user_id, post_id,reaction_type):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+
+            result = (
+                await rdb.db(Config.db.database)
+                .table("post_reaction")
+                .filter(
+                    (rdb.row["user_id"] == user_id) & (rdb.row["post_id"] == post_id)& (rdb.row["reaction_type"] == reaction_type)
+                )
+                .delete()
+                .run(connection)
+            )
+
+            return result
 
     async def telegramRegistration(self, tg_user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
@@ -161,7 +176,7 @@ class IReDocStore(IDBDocStore):
 
             user_reaction["user_id"] = user_id
             user_reaction["created_at"] = rdb.now()
-            print(user_reaction)
+            
             # Проверяем, существует ли уже реакция от этого пользователя на этот пост
             existing_reaction = (
                 await rdb.db(self.db)

@@ -168,16 +168,22 @@ async def messages(request, user_id):
     return jsonify(messages)
 
 
-async def removeFavorite(user_id, data):
-    # Получаем данные из запроса
-    data = await request.get_json()
-    post_id = data.get("post_id")
+async def removeFavorite(user_id, post_id):
+    
     result = await RethinkDb.removeFavorite(user_id, post_id)
 
     if result["deleted"] > 0:
         return jsonify({"message": "Post removed from favorites"}), 200
     else:
         return jsonify({"message": "No matching favorite post found"}), 404
+
+async def removeReaction(user_id, post_id, reaction_type):
+    result = await RethinkDb.removeReaction(user_id, post_id,reaction_type)
+
+    if result["deleted"] > 0:
+        return jsonify({"message": "Post removed from reaction"}), 200
+    else:
+        return jsonify({"message": "No matching reaction found"}), 404
 
 
 async def start_messaging(request, user_id):
@@ -504,14 +510,14 @@ async def listReaction(user_id):
         return jsonify(result)
 
 
-async def isFavorite(postId):
+async def isFavorite(userId, postId):
     async with await rdb.connect(
         host=Config.db.host, port=Config.db.port
     ) as connection:
         favorite = (
             await rdb.db("meetingsDb")
             .table("favorites_posts")
-            .filter({"post_id": postId})
+            .filter({"post_id": postId,"user_id": userId})
             .run(connection)
         )
         return await favorite.fetch_next()
@@ -649,7 +655,7 @@ async def posts(user_id, data):
                     "type": post_info["type"],
                     "keyphrases": post_keyphrases,
                     "keywords": post_keywords,
-                    "is_favorite": await isFavorite(post["id"]),
+                    "is_favorite": await isFavorite(user_id, post["id"]),
                 }
                 result.append(post)
 
@@ -735,7 +741,7 @@ async def posts(user_id, data):
                     "type": post_info["type"],
                     "keyphrases": post_keyphrases,
                     "keywords": post_keywords,
-                    "is_favorite": await isFavorite(post["id"]),
+                    "is_favorite": await isFavorite(user_id, post["id"]),
                 }
 
                 result.append(post)
