@@ -169,7 +169,6 @@ async def messages(request, user_id):
 
 
 async def removeFavorite(user_id, post_id):
-    
     result = await RethinkDb.removeFavorite(user_id, post_id)
 
     if result["deleted"] > 0:
@@ -177,8 +176,9 @@ async def removeFavorite(user_id, post_id):
     else:
         return jsonify({"message": "No matching favorite post found"}), 404
 
+
 async def removeReaction(user_id, post_id, reaction_type):
-    result = await RethinkDb.removeReaction(user_id, post_id,reaction_type)
+    result = await RethinkDb.removeReaction(user_id, post_id, reaction_type)
 
     if result["deleted"] > 0:
         return jsonify({"message": "Post removed from reaction"}), 200
@@ -220,7 +220,6 @@ async def addUser(user):
 
 
 async def randomWord(user_id):
-
     user_events = await RethinkDb.userEvents(user_id)
     post_ids = [event["post_id"] for event in user_events]
 
@@ -384,7 +383,9 @@ async def authorize_user(request):
     if not existing_user:
         await RethinkDb.addUserByEmail(user["email"], None, refresh_token)
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return await render_template(
+        "tokens.html", access_token=access_token, refresh_token=refresh_token
+    )
 
 
 async def refresh_user_token(data):
@@ -401,9 +402,13 @@ async def refresh_user_token(data):
 
             if user and user["refresh_token"] == refresh_token:
                 access_token, new_refresh_token = await generate_tokens(user_id)
-                await rdb.db(Config.db.database).table("users").get({user_id}).update(
-                    {"refresh_token": new_refresh_token}
-                ).run(connection)
+                await (
+                    rdb.db(Config.db.database)
+                    .table("users")
+                    .get({user_id})
+                    .update({"refresh_token": new_refresh_token})
+                    .run(connection)
+                )
             return {"access_token": access_token, "refresh_token": new_refresh_token}
         except jwt.ExpiredSignatureError:
             return {"message": "Refresh token expired"}, 401
@@ -412,7 +417,6 @@ async def refresh_user_token(data):
 
 
 async def addFileServer(request):
-
     data_dir = (
         Path.home() / "projects" / "redengine" / "redengine" / "dataLoads" / "dataSets/"
     )
@@ -494,6 +498,45 @@ async def predict_post_tg(tg_user_id):
     }
 
 
+async def reaction_counts(user_id, post_id):
+    async with await rdb.connect(
+        host=Config.db.host, port=Config.db.port
+    ) as connection:
+        user_reaction_cursor = (
+            await rdb.db("meetingsDb")
+            .table("post_reaction")
+            .filter({"post_id": post_id, "user_id": user_id})
+            .run(connection)
+        )
+        result_user_reaction_cursor = [
+            reaction_cursor async for reaction_cursor in user_reaction_cursor
+        ]
+        user_reaction = None
+        if len(result_user_reaction_cursor) > 0:
+            for reaction in result_user_reaction_cursor:
+                user_reaction = reaction.get("reaction_type")
+                break
+
+        reaction_counts_cursor = (
+            await rdb.db("meetingsDb")
+            .table("post_reaction")
+            .filter({"post_id": post_id})
+            .group("reaction_type")
+            .count()
+            .run(connection)
+        )
+
+
+        reaction_counts = {}
+        for reaction_type, count in reaction_counts_cursor.items():
+            reaction_counts[reaction_type] = {
+                "count": count,
+                "isActive": (reaction_type == user_reaction),
+            }
+
+    return reaction_counts
+
+
 async def listReaction(user_id):
     async with await rdb.connect(
         host=Config.db.host, port=Config.db.port
@@ -517,7 +560,7 @@ async def isFavorite(userId, postId):
         favorite = (
             await rdb.db("meetingsDb")
             .table("favorites_posts")
-            .filter({"post_id": postId,"user_id": userId})
+            .filter({"post_id": postId, "user_id": userId})
             .run(connection)
         )
         return await favorite.fetch_next()
@@ -577,15 +620,6 @@ async def posts(user_id, data):
                 .run(connection)
             )
         async for post in posts:
-            reaction_counts = (
-                await rdb.db("meetingsDb")
-                .table("post_reaction")
-                .filter({"post_id": post["id"]})
-                .group("reaction_type")
-                .count()
-                .run(connection)
-            )
-
             if post["type"] == "movie":
                 post_info = (
                     await rdb.db("meetingsDb")
@@ -625,7 +659,6 @@ async def posts(user_id, data):
 
                 post_keyphrases = []
                 async for phrase in keyphrases:
-
                     start_index = (post_info["translation"].lower()).find(
                         phrase["phrase"].lower()
                     )
@@ -647,7 +680,7 @@ async def posts(user_id, data):
                     "id": post["id"],
                     "text": post["context"],
                     "score": 20,
-                    "reaction_counts": reaction_counts,
+                    "reaction_counts": await reaction_counts(user_id, post["id"]),
                     "media_path": post["img_path"],
                     "is_image": post["has_image"],
                     "speaker_name": post_info["name_speaker"],
@@ -733,7 +766,7 @@ async def posts(user_id, data):
                     "text": post["context"],
                     "score": 20,
                     "media_path": post["img_path"],
-                    "reaction_counts": reaction_counts,
+                    "reaction_counts": await reaction_counts(user_id, post["id"]),
                     "is_image": post["has_image"],
                     "translation": post["translation"],
                     "author_name": post_info["name"],
@@ -760,7 +793,6 @@ async def topPosts(user_id, start_time_str, end_time_str, limit):
     async with await rdb.connect(
         host=Config.db.host, port=Config.db.port
     ) as connection:
-
         start_time = None
         end_time = None
 

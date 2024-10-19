@@ -12,7 +12,6 @@ STOPWORD = "STOP"
 
 
 class IRedisQueue(abc.ABC):
-
     @abc.abstractmethod
     def subscribe_queue(self):
         pass

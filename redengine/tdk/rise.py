@@ -303,7 +303,6 @@ async def get_media(filename):
 
 @app.route("/upload_file_server", methods=["POST"])
 async def upload_file():
-
     return await addFileServer(request)
 
 
@@ -408,14 +407,16 @@ async def top_posts(user_id):
 
 @app.route("/remove-favorite/<string:post_id>", methods=["DELETE"])
 @authorized
-async def remove_favorite(user_id,post_id):
-    return  await removeFavorite(user_id, post_id)
+async def remove_favorite(user_id, post_id):
+    return await removeFavorite(user_id, post_id)
 
-@app.route("/remove-reaction/<string:post_id>/<string:reaction_type>", methods=["DELETE"])
+
+@app.route(
+    "/remove-reaction/<string:post_id>/<string:reaction_type>", methods=["DELETE"]
+)
 @authorized
 async def remove_reaction(user_id, post_id, reaction_type):
     return await removeReaction(user_id, post_id, reaction_type)
-
 
 
 if __name__ == "__main__":

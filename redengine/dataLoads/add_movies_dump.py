@@ -57,7 +57,6 @@ with open(data_dir / filename) as json_file:
         )
 
         if not repeat:
-
             id = uuid.uuid4()
             if "type" in p and p["type"] == "movie":
                 rdb.db("meetingsDb").table("movies").insert({"title": p["title"]}).run(
