@@ -68,7 +68,7 @@ result1 = []
 def contains_russian(text):
     if isinstance(text, str):
         # Проверка наличия хотя бы одного русского символа
-        return any("\u0400" <= char <= "\u04FF" for char in text)
+        return any("\u0400" <= char <= "\u04ff" for char in text)
     return False
 
 
@@ -80,7 +80,6 @@ def save_to_json(data, filename="data_for_fix.json"):
 # filtered_posts = [post for post in posts if  "translation" in post and post['translation'] and has_repeated_words(post['translation'])]
 for post in posts:
     if "translation" in post and post["translation"]:
-
         if contains_russian(post["translation"]):
             result1.append(post)
 

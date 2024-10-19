@@ -38,7 +38,6 @@ with open(data_dir / filename) as json_file:
         )
 
         if not repeat:
-
             if "speaker" not in p:
                 rdb.db("meetingsDb").table("authors").insert(
                     {"name": p["author"], "is_speaker": False}

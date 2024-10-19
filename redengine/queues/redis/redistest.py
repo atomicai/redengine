@@ -10,7 +10,6 @@ red = aioredis.from_url("redis://localhost")
 async def reader2(channel: aioredis.client.PubSub):
     while True:
         try:
-
             async with async_timeout.timeout(1):
                 message = await channel.get_message(ignore_subscribe_messages=True)
                 print(f"(Reader) Message Received: {message}")

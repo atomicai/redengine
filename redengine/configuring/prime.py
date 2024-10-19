@@ -10,7 +10,6 @@ import os
 
 @singleton
 class IConfig:
-
     DEFAULT_UMAP = dict(n_neighbors=15, n_components=5, min_dist=0.0, metric="cosine")
 
     DEFAULT_PCA = dict()

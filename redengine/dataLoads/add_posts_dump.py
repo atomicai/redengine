@@ -30,7 +30,6 @@ with open(data_dir / filename) as json_file:
     data = json.load(json_file)
 
     for p in data["posts"]:
-
         if p["type"] == "movie":
             if "keyphrases" not in p:
                 p["keyphrases"] = []

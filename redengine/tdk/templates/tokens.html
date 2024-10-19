@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Auth</title>
+  <script>
+    window.onload = function () {
+      // Передаем токены обратно в WebView через postMessage
+      const tokens = {
+        access_token: "{{ access_token }}",
+        refresh_token: "{{ refresh_token }}"
+      };
+
+      // Отправляем токены обратно в приложение через WebView
+      window.ReactNativeWebView.postMessage(JSON.stringify(tokens));
+    };
+  </script>
+</head>
+<body>
+  <h1>Авторизация успешна! Вы будете перенаправлены...</h1>
+</body>
+</html>

@@ -25,7 +25,6 @@ async def reader():
 
 
 async def pubPost():
-
     topic = exchange.topic(["superhero", "fight", "supervillain"])
     topic.publish(
         {
