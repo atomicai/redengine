@@ -15,6 +15,8 @@ from redengine.tdk.user.schemas import (
     UserInfo,
     Posts,
     UserReaction,
+    KeyPhrases,
+    Schemas
 )
 from authlib.integrations.starlette_client import OAuth
 from dataclasses import dataclass, asdict
@@ -59,6 +61,7 @@ from redengine.tdk.prime import (
     addUserInfo,
     addUserPhoto,
     postsOfTime,
+    showKeyphrases
 )
 from requests_oauthlib import OAuth2Session
 import asyncio
@@ -279,6 +282,10 @@ async def ws(user_id):
 # async def predict() -> any:
 #     return asyncio.run(predict_post())
 
+@app.route("/schemas", methods=["POST"])
+@validate_request(Schemas)
+async def get_schemas():
+    return 'ок'
 
 @app.route("/posts", methods=["POST"])
 @authorized
@@ -287,6 +294,12 @@ async def prediction(user_id, data: Posts):
     data = asdict(data)
     return await predict_posts(user_id, data)
 
+@app.route("/show-keyphrases", methods=["POST"])
+@authorized
+@validate_request(KeyPhrases)
+async def show_keyphrases(user_id, data: KeyPhrases):
+    data = asdict(data)
+    return await showKeyphrases(user_id, data)
 
 @app.route("/predict/<int:tg_user_id>", methods=["GET"])
 async def predict(tg_user_id) -> any:

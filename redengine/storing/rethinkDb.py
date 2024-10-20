@@ -361,6 +361,25 @@ class IReDocStore(IDBDocStore):
                 .run(connection)
             )
 
+    async def addSearchKeyphrases(self, user_id, data):
+        async with await rdb.connect(host=self.host, port=self.port) as connection:
+            return (
+                await rdb.db(Config.db.database)
+                .table("search_keyphrases")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "title": data["messages"][0]["title"],
+                        "content": data["messages"][0]["content"],
+                        "max-tokens": data["max_tokens"],
+                        "temperature": data["temperature"],
+                        "response": data["answer"],
+                        "created_at": rdb.now(),
+                    }
+                )
+                .run(connection)
+            )
+
     async def showFavorites(self, user_id):
         async with await rdb.connect(host=self.host, port=self.port) as connection:
             return (

@@ -16,6 +16,11 @@ class RegisterForm:
     password: str
     email: Optional[str] = None
     login: Optional[str] = None
+    organization: Optional[str] = None
+    age: Optional[int] = None
+    describe: Optional[str] = None
+    organization: Optional[str] = None
+    secret_code: Optional[str] = None
 
 
 @dataclass
@@ -70,8 +75,12 @@ class UserPhoto:
 @dataclass
 class UserInfo:
     username: str
-    age: int
-    describe: str
+    email: str
+    organization: Optional[str] = None
+    age: Optional[int] = None
+    describe: Optional[str] = None
+    organization: Optional[str] = None
+    secret_code: Optional[str] = None
 
 
 @dataclass
@@ -96,3 +105,26 @@ class GenerationLogin:
 @dataclass
 class Favorites:
     post_id: str
+
+
+@dataclass
+class Message:
+    content: str
+    title: Optional[str] = None
+
+
+@dataclass
+class KeyPhrases:
+    messages: List[Message]
+    temperature: float
+    max_tokens: int
+
+@dataclass 
+class Schemas:
+    User: User
+    KeyPhrases: KeyPhrases
+    RegisterForm: RegisterForm
+    UserInfo: UserInfo
+    Token: Token
+    UserReaction: UserReaction
+    Favorites: Favorites

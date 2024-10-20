@@ -526,7 +526,6 @@ async def reaction_counts(user_id, post_id):
             .run(connection)
         )
 
-
         reaction_counts = {}
         for reaction_type, count in reaction_counts_cursor.items():
             reaction_counts[reaction_type] = {
@@ -535,6 +534,16 @@ async def reaction_counts(user_id, post_id):
             }
 
     return reaction_counts
+
+async def showKeyphrases(user_id,data):
+        
+        URL = "https://r0itqk62csja.share.zrok.io/v1/chat/completions/keywords"
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(URL, headers=headers, data=json.dumps(data)).json()
+        answer = response['choices'][0]["message"]["content"]
+        data["answer"] = answer
+        await RethinkDb.addSearchKeyphrases(user_id, data)
+        return jsonify(answer)
 
 
 async def listReaction(user_id):
