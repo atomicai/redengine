@@ -334,7 +334,7 @@ async def loginUser(user):
         and check_password_hash(person["password"], user.password)
     ):
         access_token, refresh_token = await generate_tokens(person["user_id"])
-        
+
         await RethinkDb.updateRefreshToken(person["user_id"], refresh_token)
 
         return {"access_token": access_token, "refresh_token": refresh_token}
@@ -536,15 +536,15 @@ async def reaction_counts(user_id, post_id):
 
     return reaction_counts
 
-async def showKeyphrases(user_id,data):
-        
-        URL = "https://r0itqk62csja.share.zrok.io/v1/chat/completions/keywords"
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(URL, headers=headers, data=json.dumps(data)).json()
-        answer = response['choices'][0]["message"]["content"]
-        data["answer"] = answer
-        await RethinkDb.addSearchKeyphrases(user_id, data)
-        return jsonify(answer)
+
+async def showKeyphrases(user_id, data):
+    URL = "https://r0itqk62csja.share.zrok.io/v1/chat/completions/keywords"
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(URL, headers=headers, data=json.dumps(data)).json()
+    answer = response["choices"][0]["message"]["content"]
+    data["answer"] = answer
+    await RethinkDb.addSearchKeyphrases(user_id, data)
+    return jsonify(answer)
 
 
 async def listReaction(user_id):

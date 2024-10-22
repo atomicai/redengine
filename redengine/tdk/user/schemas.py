@@ -119,7 +119,8 @@ class KeyPhrases:
     temperature: float
     max_tokens: int
 
-@dataclass 
+
+@dataclass
 class Schemas:
     User: User
     KeyPhrases: KeyPhrases

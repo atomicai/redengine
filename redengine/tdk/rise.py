@@ -16,7 +16,7 @@ from redengine.tdk.user.schemas import (
     Posts,
     UserReaction,
     KeyPhrases,
-    Schemas
+    Schemas,
 )
 from authlib.integrations.starlette_client import OAuth
 from dataclasses import dataclass, asdict
@@ -61,7 +61,7 @@ from redengine.tdk.prime import (
     addUserInfo,
     addUserPhoto,
     postsOfTime,
-    showKeyphrases
+    showKeyphrases,
 )
 from requests_oauthlib import OAuth2Session
 from redengine.storing.rethinkDb import IReDocStore
@@ -89,9 +89,11 @@ RethinkDb = IReDocStore()
 with open(str(Path(os.getcwd()) / "config.yaml")) as fp:
     Config = yaml.safe_load(fp)
 
+
 @app.before_serving
 async def before_serving():
     await RethinkDb.connect()
+
 
 @app.after_serving
 async def after_serving():
@@ -113,7 +115,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 async def get_redis_connection():
-    return await aioredis.from_url('redis://localhost')
+    return await aioredis.from_url("redis://localhost")
+
 
 def rate_limit():
     def decorator(func):
@@ -126,16 +129,18 @@ def rate_limit():
             current_requests = await redis.get(key)
             current_requests = int(current_requests) if current_requests else 0
 
-            if current_requests >= Config['rate_limit']['limit']:
+            if current_requests >= Config["rate_limit"]["limit"]:
                 return jsonify({"error": "Too many requests"}), 429
 
             await redis.incr(key)
-            await redis.expire(key, Config['rate_limit']['period'])
+            await redis.expire(key, Config["rate_limit"]["period"])
 
             await redis.close()
 
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -150,30 +155,35 @@ def brute_force_protection():
             attempts = await redis.get(key)
             attempts = int(attempts) if attempts else 0
 
-
-            if attempts >= Config['rate_limit']['limit']:
+            if attempts >= Config["rate_limit"]["limit"]:
                 await redis.close()
-                return jsonify({"error": "Too many failed login attempts. Try again later."}), 429
+                return jsonify(
+                    {"error": "Too many failed login attempts. Try again later."}
+                ), 429
 
             response = await func(*args, **kwargs)
             response_body, status_code = response
 
             if status_code == 401:
                 await redis.incr(key)
-                await redis.expire(key, Config['rate_limit']['period'])
+                await redis.expire(key, Config["rate_limit"]["period"])
 
             elif status_code == 200:
                 await redis.delete(key)
 
             await redis.close()
             return response
+
         return wrapper
+
     return decorator
 
-@app.route('/test', methods=['GET'])
+
+@app.route("/test", methods=["GET"])
 @rate_limit()
 async def test_route():
     return jsonify({"message": "This is a test route with rate limiting."})
+
 
 def authorized(f):
     @wraps(f)
@@ -350,10 +360,12 @@ async def ws(user_id):
 # async def predict() -> any:
 #     return asyncio.run(predict_post())
 
+
 @app.route("/schemas", methods=["POST"])
 @validate_request(Schemas)
 async def get_schemas():
-    return 'ок'
+    return "ок"
+
 
 @app.route("/posts", methods=["POST"])
 @authorized
@@ -362,6 +374,7 @@ async def prediction(user_id, data: Posts):
     data = asdict(data)
     return await predict_posts(user_id, data)
 
+
 @app.route("/show-keyphrases", methods=["POST"])
 @authorized
 @validate_request(KeyPhrases)
@@ -369,6 +382,7 @@ async def prediction(user_id, data: Posts):
 async def show_keyphrases(user_id, data: KeyPhrases):
     data = asdict(data)
     return await showKeyphrases(user_id, data)
+
 
 @app.route("/predict/<int:tg_user_id>", methods=["GET"])
 async def predict(tg_user_id) -> any:
