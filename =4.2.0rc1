@@ -1,0 +1,6 @@
+Collecting redis
+  Downloading redis-5.1.1-py3-none-any.whl.metadata (9.1 kB)
+Downloading redis-5.1.1-py3-none-any.whl (261 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 261.3/261.3 kB 2.2 MB/s eta 0:00:00
+Installing collected packages: redis
+Successfully installed redis-5.1.1

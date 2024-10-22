@@ -51,7 +51,7 @@ JWT_SECRET_KEY = os.environ.get("SECRET_KEY")
 RethinkDb = IReDocStore()
 
 with open(str(Path(os.getcwd()) / "config.yaml")) as fp:
-    flowConfig = yaml.safe_load(fp)
+    FlowConfig = yaml.safe_load(fp)
 
 
 class CustomException(HTTPException):
@@ -65,7 +65,7 @@ class CustomLoginException(HTTPException):
 
 
 flow = Flow.from_client_config(
-    client_config=flowConfig,
+    client_config=FlowConfig,
     scopes=[
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/userinfo.email",
@@ -334,7 +334,8 @@ async def loginUser(user):
         and check_password_hash(person["password"], user.password)
     ):
         access_token, refresh_token = await generate_tokens(person["user_id"])
-        await RethinkDb.updateRefreshToken(refresh_token)
+        
+        await RethinkDb.updateRefreshToken(person["user_id"], refresh_token)
 
         return {"access_token": access_token, "refresh_token": refresh_token}
 
@@ -356,7 +357,7 @@ async def get_all_users() -> List[Dict[str, Any]]:
 
 async def authorize_user(request):
     flow = Flow.from_client_config(
-        client_config=flowConfig,
+        client_config=FlowConfig,
         scopes=[
             "https://www.googleapis.com/auth/userinfo.profile",
             "https://www.googleapis.com/auth/userinfo.email",

@@ -64,25 +64,19 @@ from redengine.tdk.prime import (
     showKeyphrases
 )
 from requests_oauthlib import OAuth2Session
+from redengine.storing.rethinkDb import IReDocStore
 import asyncio
 import os
 import dotenv
 import pytz
 import yaml
-import rethinkdb as r
+from redis import asyncio as aioredis
+import google.auth.transport.requests
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
 from pip._vendor import cachecontrol
-import google.auth.transport.requests
 from redengine.configuring import Config
 
-dotenv.load_dotenv()
-
-rdb = r.RethinkDB()
-conn = rdb.connect(host=Config.app.host, port=28015)
-
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
-# client_secrets_file = os.path.join(pathlib.Path(__file__).parent, "client_secret.json")
 
 app = Quart(__name__)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -90,12 +84,22 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 app.secret_key = Config.jwt_secret_key
 QuartSchema(app)
 
+RethinkDb = IReDocStore()
+
 with open(str(Path(os.getcwd()) / "config.yaml")) as fp:
-    flowConfig = yaml.safe_load(fp)
+    Config = yaml.safe_load(fp)
+
+@app.before_serving
+async def before_serving():
+    await RethinkDb.connect()
+
+@app.after_serving
+async def after_serving():
+    await RethinkDb.close()
 
 
 flow = Flow.from_client_config(
-    client_config=flowConfig,
+    client_config=Config,
     scopes=[
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/userinfo.email",
@@ -107,6 +111,69 @@ flow = Flow.from_client_config(
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
+async def get_redis_connection():
+    return await aioredis.from_url('redis://localhost')
+
+def rate_limit():
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            redis = await get_redis_connection()
+            user_ip = request.remote_addr
+            key = f"rate_limit:{user_ip}"
+
+            current_requests = await redis.get(key)
+            current_requests = int(current_requests) if current_requests else 0
+
+            if current_requests >= Config['rate_limit']['limit']:
+                return jsonify({"error": "Too many requests"}), 429
+
+            await redis.incr(key)
+            await redis.expire(key, Config['rate_limit']['period'])
+
+            await redis.close()
+
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def brute_force_protection():
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            redis = await get_redis_connection()
+            user_ip = request.remote_addr
+            key = f"login_attempts:{user_ip}"
+
+            attempts = await redis.get(key)
+            attempts = int(attempts) if attempts else 0
+
+
+            if attempts >= Config['rate_limit']['limit']:
+                await redis.close()
+                return jsonify({"error": "Too many failed login attempts. Try again later."}), 429
+
+            response = await func(*args, **kwargs)
+            response_body, status_code = response
+
+            if status_code == 401:
+                await redis.incr(key)
+                await redis.expire(key, Config['rate_limit']['period'])
+
+            elif status_code == 200:
+                await redis.delete(key)
+
+            await redis.close()
+            return response
+        return wrapper
+    return decorator
+
+@app.route('/test', methods=['GET'])
+@rate_limit()
+async def test_route():
+    return jsonify({"message": "This is a test route with rate limiting."})
 
 def authorized(f):
     @wraps(f)
@@ -144,6 +211,7 @@ async def googleTest():
 
 @app.route("/login", methods=["POST"])
 @validate_request(RegisterForm)
+@brute_force_protection()
 async def login(data: RegisterForm) -> Dict[str, Any]:
     return await loginUser(data)
 
@@ -297,6 +365,7 @@ async def prediction(user_id, data: Posts):
 @app.route("/show-keyphrases", methods=["POST"])
 @authorized
 @validate_request(KeyPhrases)
+@rate_limit()
 async def show_keyphrases(user_id, data: KeyPhrases):
     data = asdict(data)
     return await showKeyphrases(user_id, data)
